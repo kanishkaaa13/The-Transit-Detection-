@@ -568,3 +568,98 @@ def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     return df
+
+
+# ---------------------------------------------------------------------------
+# Master pipeline orchestrator
+# ---------------------------------------------------------------------------
+
+def run_cleaning_pipeline(config: Config) -> pd.DataFrame:
+    """
+    Run the full TIC cleaning pipeline end-to-end.
+
+    Steps
+    -----
+    1. Load ``data/raw/tic_southern_polar.csv``
+    2. Drop near-empty and hardcoded columns  (``drop_null_columns``)
+    3. Cast columns to correct dtypes          (``cast_column_types``)
+    4. Derive Gaia BP-RP colour index          (``compute_bprp``)
+    5. Fit polynomial Teff calibration model   (``fit_teff_calibration``)
+    6. Impute missing Teff values              (``impute_teff``)
+    7. Add derived features & target flag      (``add_derived_features``)
+    8. Save cleaned data to ``data/clean/tic_clean.parquet``
+    9. Print final summary and return
+
+    Parameters
+    ----------
+    config:
+        Pipeline configuration (see ``src.config.Config``).
+
+    Returns
+    -------
+    pd.DataFrame
+        Fully cleaned and feature-engineered TIC DataFrame.
+    """
+    # ── Step 1: Load raw catalog ───────────────────────────────────────────────
+    raw_path = config.RAW_DIR / "tic_southern_polar.csv"
+    print(f"\n{'='*60}")
+    print(f"[pipeline] Loading raw catalog: {raw_path}")
+    df = pd.read_csv(raw_path, low_memory=False)
+    print(f"[pipeline] Loaded {len(df):,} rows × {len(df.columns)} columns")
+
+    # ── Step 2: Drop null-heavy and hardcoded columns ──────────────────────────
+    print(f"\n{'─'*60}")
+    df, _ = drop_null_columns(df, config=config)
+
+    # ── Step 3: Cast to correct dtypes ────────────────────────────────────────
+    print(f"\n{'─'*60}")
+    df = cast_column_types(df)
+
+    # ── Step 4: Derive BP-RP colour index ─────────────────────────────────────
+    print(f"\n{'─'*60}")
+    df = compute_bprp(df)
+
+    # ── Step 5: Fit Teff calibration model ────────────────────────────────────
+    print(f"\n{'─'*60}")
+    model = fit_teff_calibration(df, degree=3)
+
+    # ── Step 6: Impute missing Teff ───────────────────────────────────────────
+    print(f"\n{'─'*60}")
+    df = impute_teff(df, model)
+
+    # ── Step 7: Add derived features ─────────────────────────────────────────
+    print(f"\n{'─'*60}")
+    df = add_derived_features(df)
+
+    # ── Step 8: Save parquet ──────────────────────────────────────────────────
+    config.CLEAN_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = config.CLEAN_DIR / "tic_clean.parquet"
+    df.to_parquet(out_path, index=False)
+    print(f"\n[pipeline] Saved cleaned data → {out_path}")
+
+    # ── Step 9: Final summary ─────────────────────────────────────────────────
+    n_prime       = int(df["prime_target"].sum()) if "prime_target" in df.columns else 0
+    teff_fill_pct = df["Teff"].notna().mean() if "Teff" in df.columns else float("nan")
+
+    print(
+        f"\n{'='*60}\n"
+        f"[pipeline] ✓ Cleaning complete\n"
+        f"  Final shape      : {df.shape[0]:,} rows × {df.shape[1]} columns\n"
+        f"  prime_target     : {n_prime:,} stars\n"
+        f"  Teff fill rate   : {teff_fill_pct:.2%}\n"
+        f"{'='*60}"
+    )
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# __main__
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    from src.config import Config as _Config
+
+    _cfg = _Config()
+    _df  = run_cleaning_pipeline(_cfg)
+    print("Pipeline complete")
