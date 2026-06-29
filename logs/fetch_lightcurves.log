@@ -377,3 +377,146 @@
 15:47:19  INFO      8% (1656/20262) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
 15:47:20  INFO        Saved 83643 cadences -> data\raw\lightcurves\TIC_318612553.csv
 15:47:21  INFO      [TIC 394820284] Processing …
+15:47:42  INFO        No 2-min SPOC data found for TIC 394820284.
+15:47:43  INFO      [TIC 325638022] Processing …
+15:48:04  INFO        No 2-min SPOC data found for TIC 325638022.
+15:48:05  INFO      [TIC 327829910] Processing …
+15:48:11  INFO        No 2-min SPOC data found for TIC 327829910.
+15:48:12  INFO      [TIC 424989134] Processing …
+15:48:18  INFO        No 2-min SPOC data found for TIC 424989134.
+15:48:19  INFO      [TIC 468190621] Processing …
+15:48:25  INFO        No 2-min SPOC data found for TIC 468190621.
+15:48:26  INFO      [TIC 274226424] Processing …
+15:48:36  INFO        No 2-min SPOC data found for TIC 274226424.
+15:48:37  INFO      [TIC 468148897] Processing …
+15:48:44  INFO        No 2-min SPOC data found for TIC 468148897.
+15:48:45  INFO      [TIC 327856538] Processing …
+15:48:53  INFO        No 2-min SPOC data found for TIC 327856538.
+15:48:54  INFO      [TIC 451606572] Processing …
+15:49:10  INFO        No 2-min SPOC data found for TIC 451606572.
+15:49:11  INFO      [TIC 274034166] Processing …
+15:49:31  INFO        No 2-min SPOC data found for TIC 274034166.
+15:49:32  INFO      [TIC 468182953] Processing …
+15:49:34  INFO        Found 1 sector(s) for TIC 468182953. Downloading …
+15:49:54  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:49:54  INFO        Saved 14982 cadences -> data\raw\lightcurves\TIC_468182953.csv
+15:49:55  INFO      [TIC 468192563] Processing …
+15:50:02  INFO        No 2-min SPOC data found for TIC 468192563.
+15:50:03  INFO      [TIC 451558290] Processing …
+15:50:09  INFO        No 2-min SPOC data found for TIC 451558290.
+15:50:10  INFO      [TIC 394758096] Processing …
+15:50:12  INFO        Found 2 sector(s) for TIC 394758096. Downloading …
+15:50:21  INFO      3% (498/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:50:40  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:50:40  INFO        Saved 33919 cadences -> data\raw\lightcurves\TIC_394758096.csv
+15:50:41  INFO      [TIC 317351809] Processing …
+15:50:42  INFO        Found 1 sector(s) for TIC 317351809. Downloading …
+15:51:01  INFO      3% (500/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:51:01  INFO        Saved 14609 cadences -> data\raw\lightcurves\TIC_317351809.csv
+15:51:02  INFO      [TIC 369936058] Processing …
+15:51:21  INFO        No 2-min SPOC data found for TIC 369936058.
+15:51:22  INFO      [TIC 424996784] Processing …
+15:51:30  INFO        No 2-min SPOC data found for TIC 424996784.
+15:51:31  INFO      [TIC 257342510] Processing …
+15:51:32  INFO        Found 2 sector(s) for TIC 257342510. Downloading …
+15:51:54  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:52:04  INFO      0% (71/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:52:04  INFO        Saved 34274 cadences -> data\raw\lightcurves\TIC_257342510.csv
+15:52:05  INFO      [TIC 362068387] Processing …
+15:52:25  INFO        No 2-min SPOC data found for TIC 362068387.
+15:52:26  INFO      [TIC 317351815] Processing …
+15:52:38  INFO        No 2-min SPOC data found for TIC 317351815.
+15:52:39  INFO      [TIC 318273916] Processing …
+15:52:40  INFO        Found 2 sector(s) for TIC 318273916. Downloading …
+15:53:05  INFO      0% (33/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:53:29  INFO      0% (71/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:53:29  INFO        Saved 34373 cadences -> data\raw\lightcurves\TIC_318273916.csv
+15:53:30  INFO      [TIC 468190615] Processing …
+15:53:32  INFO        Found 2 sector(s) for TIC 468190615. Downloading …
+15:53:53  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:54:11  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:54:11  INFO        Saved 29580 cadences -> data\raw\lightcurves\TIC_468190615.csv
+15:54:12  INFO      [TIC 451560638] Processing …
+15:54:14  INFO        Found 1 sector(s) for TIC 451560638. Downloading …
+15:54:37  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:54:37  INFO        Saved 19437 cadences -> data\raw\lightcurves\TIC_451560638.csv
+15:54:38  INFO      [TIC 321154325] Processing …
+15:54:49  INFO        No 2-min SPOC data found for TIC 321154325.
+15:54:50  INFO      [TIC 257342621] Processing …
+15:54:59  INFO        No 2-min SPOC data found for TIC 257342621.
+15:55:00  INFO      [TIC 327831756] Processing …
+15:55:11  INFO        No 2-min SPOC data found for TIC 327831756.
+15:55:12  INFO      [TIC 270277246] Processing …
+15:55:55  WARNING   MAST search failed for TIC 270277246: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+15:55:56  INFO      [TIC 257772292] Processing …
+15:55:56  WARNING   MAST search failed for TIC 257772292: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:55:57  INFO      [TIC 468184882] Processing …
+15:55:57  WARNING   MAST search failed for TIC 468184882: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:55:58  INFO      [TIC 468179086] Processing …
+15:55:58  WARNING   MAST search failed for TIC 468179086: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:55:59  INFO      [TIC 362083806] Processing …
+15:55:59  WARNING   MAST search failed for TIC 362083806: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:57:39  INFO      [TIC 362124742] Processing …
+15:57:39  WARNING   MAST search failed for TIC 362124742: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:57:40  INFO      [TIC 267118794] Processing …
+15:57:40  WARNING   MAST search failed for TIC 267118794: HTTPSConnectionPool(host='mast.stsci.edu', port=443): Max retries exceeded with url: /api/v0/invoke (Caused by NameResolutionError("HTTPSConnection(host='mast.stsci.edu', port=443): Failed to resolve 'mast.stsci.edu' ([Errno 11001] getaddrinfo failed)"))
+15:57:41  INFO      [TIC 257772030] Processing …
+15:58:05  INFO        No 2-min SPOC data found for TIC 257772030.
+15:58:06  INFO      [TIC 257738056] Processing …
+15:58:37  INFO        No 2-min SPOC data found for TIC 257738056.
+15:58:38  INFO      [TIC 317246315] Processing …
+15:58:56  INFO        No 2-min SPOC data found for TIC 317246315.
+15:58:57  INFO      [TIC 410354774] Processing …
+15:59:16  INFO        No 2-min SPOC data found for TIC 410354774.
+15:59:17  INFO      [TIC 451606547] Processing …
+15:59:18  INFO        Found 1 sector(s) for TIC 451606547. Downloading …
+15:59:43  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:59:43  INFO        Saved 15063 cadences -> data\raw\lightcurves\TIC_451606547.csv
+15:59:44  INFO      [TIC 318650094] Processing …
+15:59:57  INFO        No 2-min SPOC data found for TIC 318650094.
+15:59:58  INFO      [TIC 468182976] Processing …
+16:00:11  INFO        No 2-min SPOC data found for TIC 468182976.
+16:00:12  INFO      [TIC 325527349] Processing …
+16:01:01  INFO        No 2-min SPOC data found for TIC 325527349.
+16:01:02  INFO      [TIC 401819516] Processing …
+16:01:08  INFO        No 2-min SPOC data found for TIC 401819516.
+16:01:09  INFO      [TIC 468184847] Processing …
+16:01:26  INFO        No 2-min SPOC data found for TIC 468184847.
+16:01:27  INFO      [TIC 410366034] Processing …
+16:02:09  INFO        No 2-min SPOC data found for TIC 410366034.
+16:02:10  INFO      [TIC 468186783] Processing …
+16:02:12  INFO        Found 2 sector(s) for TIC 468186783. Downloading …
+16:02:31  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+16:02:53  INFO      0% (74/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+16:02:53  INFO        Saved 34361 cadences -> data\raw\lightcurves\TIC_468186783.csv
+16:02:54  INFO      [TIC 405468906] Processing …
+16:03:13  INFO        No 2-min SPOC data found for TIC 405468906.
+16:03:14  INFO      [TIC 325527209] Processing …
+16:03:29  INFO        No 2-min SPOC data found for TIC 325527209.
+16:03:30  INFO      [TIC 274228015] Processing …
+16:04:01  INFO        No 2-min SPOC data found for TIC 274228015.
+16:04:02  INFO      [TIC 327830154] Processing …
+16:04:07  INFO        No 2-min SPOC data found for TIC 327830154.
+16:04:08  INFO      [TIC 468216911] Processing …
+16:04:19  INFO        No 2-min SPOC data found for TIC 468216911.
+16:04:20  INFO      [TIC 468153100] Processing …
+16:04:25  INFO        No 2-min SPOC data found for TIC 468153100.
+16:04:26  INFO      [TIC 257325405] Processing …
+16:04:32  INFO        No 2-min SPOC data found for TIC 257325405.
+16:04:33  INFO      [TIC 468153033] Processing …
+16:04:40  INFO        No 2-min SPOC data found for TIC 468153033.
+16:04:41  INFO      [TIC 257342607] Processing …
+16:04:49  INFO        No 2-min SPOC data found for TIC 257342607.
+16:04:50  INFO      [TIC 327830144] Processing …
+16:04:56  INFO        No 2-min SPOC data found for TIC 327830144.
+16:04:57  INFO      [TIC 468190655] Processing …
+16:05:03  INFO        No 2-min SPOC data found for TIC 468190655.
+16:05:04  INFO      [TIC 468155117] Processing …
+16:05:13  INFO        No 2-min SPOC data found for TIC 468155117.
+16:05:14  INFO      [TIC 318237299] Processing …
+16:05:25  INFO        No 2-min SPOC data found for TIC 318237299.
+16:05:26  INFO      [TIC 369368408] Processing …
+16:05:37  INFO        No 2-min SPOC data found for TIC 369368408.
+16:05:38  INFO      [TIC 394724028] Processing …
+16:05:48  INFO        No 2-min SPOC data found for TIC 394724028.
+16:05:49  INFO      [TIC 274226521] Processing …
