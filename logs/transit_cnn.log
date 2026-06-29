@@ -89,3 +89,6 @@
 14:48:41  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
 14:48:41  INFO      [TIC_POS] P=4.5000 d  δ=10000.0 ppm  SNR=195.87  CNN=0.997
 14:48:41  INFO      [TIC_NEG] P=4.5000 d  δ=500.0 ppm  SNR=7.26  CNN=0.228
+14:49:17  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
+14:49:17  INFO      [TIC_POS] P=4.5000 d  δ=10000.0 ppm  SNR=195.87  CNN=0.997
+14:49:17  INFO      [TIC_NEG] P=4.5000 d  δ=500.0 ppm  SNR=7.26  CNN=0.228
