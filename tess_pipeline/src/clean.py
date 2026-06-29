@@ -3,12 +3,15 @@ clean.py
 --------
 Column-level cleaning utilities for the TESS pipeline.
 
-Currently exposes a single function:
+Functions
+---------
+drop_null_columns(df, null_threshold=0.99, config=None)
+    Remove near-empty columns and produce a null-statistics report.
 
-    drop_null_columns(df, null_threshold=0.99)
-        → (cleaned_df, null_report)
+cast_column_types(df)
+    Cast TIC columns to their correct pandas dtypes using errors='coerce'.
 
-No row filtering, type casting, or feature engineering is done here.
+No row filtering or feature engineering is done here.
 """
 
 from __future__ import annotations
@@ -142,3 +145,105 @@ def drop_null_columns(
     )
 
     return cleaned_df, null_report
+
+
+# ---------------------------------------------------------------------------
+# Type casting
+# ---------------------------------------------------------------------------
+
+#: Columns to cast to pandas nullable Int64
+_INT64_COLS: list[str] = [
+    "ID",
+    "objID",
+]
+
+#: Columns to cast to pandas nullable Int8
+_INT8_COLS: list[str] = [
+    "wdflag",
+    "raddflag",
+]
+
+#: Columns to cast to float64
+#  Note: "plx" and "e_plx" appear twice in the spec; deduplication is handled
+#  inside the function so casting each column only once.
+_FLOAT64_COLS: list[str] = [
+    "ra", "dec", "pmRA", "e_pmRA", "pmDEC", "e_pmDEC", "plx", "e_plx",
+    "gallong", "gallat", "eclong", "eclat",
+    "Bmag", "e_Bmag", "Vmag", "e_Vmag",
+    "Jmag", "e_Jmag", "Hmag", "e_Hmag", "Kmag", "e_Kmag",
+    "w1mag", "e_w1mag", "w2mag", "e_w2mag", "w3mag", "e_w3mag", "w4mag", "e_w4mag",
+    "GAIAmag", "e_GAIAmag", "gaiabp", "e_gaiabp", "gaiarp", "e_gaiarp",
+    "Tmag", "e_Tmag", "Teff", "e_Teff", "logg", "e_logg",
+    "rad", "e_rad", "mass", "e_mass", "rho", "e_rho", "lum", "e_lum",
+    "d", "e_d", "ebv", "e_ebv", "contratio", "priority",
+    "eneg_Mass", "epos_Mass", "eneg_Rad", "epos_Rad",
+    "eneg_rho", "epos_rho", "eneg_logg", "epos_logg",
+    "eneg_lum", "epos_lum", "eneg_dist", "epos_dist",
+    "eneg_Teff", "epos_Teff", "eneg_EBV", "epos_EBV",
+    "e_RA", "e_Dec", "RA_orig", "Dec_orig", "e_RA_orig", "e_Dec_orig",
+]
+
+
+def cast_column_types(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cast TIC DataFrame columns to their correct pandas dtypes.
+
+    Casting is applied only to columns that are *present* in ``df``; missing
+    columns are silently skipped.  All numeric conversions use
+    ``pd.to_numeric(errors='coerce')`` so malformed or non-numeric cell values
+    become ``NaN`` rather than raising an exception.
+
+    Type mapping
+    ------------
+    * ``Int64`` (nullable integer) : ID, objID
+    * ``Int8``  (nullable integer) : wdflag, raddflag
+    * ``float64``                  : all astrometric, photometric, and
+                                     stellar-parameter columns
+                                     (see ``_FLOAT64_COLS``)
+
+    Parameters
+    ----------
+    df:
+        DataFrame to cast. A copy is made; the original is not mutated.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with updated dtypes.
+    """
+    df = df.copy()
+    n_cast = 0
+
+    # ── Int64 (nullable) ───────────────────────────────────────────────────────
+    for col in _INT64_COLS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+            n_cast += 1
+
+    # ── Int8 (nullable) ────────────────────────────────────────────────────────
+    for col in _INT8_COLS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int8")
+            n_cast += 1
+
+    # ── float64 ───────────────────────────────────────────────────────────────
+    # Deduplicate _FLOAT64_COLS while preserving order so each column is only
+    # cast once even though the spec lists "plx"/"e_plx" twice.
+    seen: set[str] = set()
+    for col in _FLOAT64_COLS:
+        if col in df.columns and col not in seen:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+            seen.add(col)
+            n_cast += 1
+
+    n_int64_found  = sum(1 for c in _INT64_COLS  if c in df.columns)
+    n_int8_found   = sum(1 for c in _INT8_COLS   if c in df.columns)
+    n_float64_found = len(seen)
+
+    print(
+        f"[clean] cast_column_types: successfully cast {n_cast} column(s)  "
+        f"(Int64={n_int64_found}, Int8={n_int8_found}, float64={n_float64_found}; "
+        f"skipped any absent columns)"
+    )
+
+    return df
