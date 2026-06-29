@@ -11,12 +11,24 @@ drop_null_columns(df, null_threshold=0.99, config=None)
 cast_column_types(df)
     Cast TIC columns to their correct pandas dtypes using errors='coerce'.
 
-No row filtering or feature engineering is done here.
+compute_bprp(df)
+    Derive the Gaia BP-RP colour index column.
+
+fit_teff_calibration(df, degree=3)
+    Fit a polynomial Ridge regression to predict Teff from BP-RP colour.
+
+impute_teff(df, model)
+    Fill missing Teff values using the fitted calibration model.
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 
 from src.config import Config
 
