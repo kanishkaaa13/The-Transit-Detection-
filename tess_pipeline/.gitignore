@@ -1,0 +1,7 @@
+data/
+plots/
+__pycache__/
+*.pyc
+.env
+*.fits
+*.parquet

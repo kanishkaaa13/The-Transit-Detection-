@@ -1,0 +1,11 @@
+astropy>=5.0
+astroquery>=0.4.7
+lightkurve>=2.4.0
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+scipy>=1.11
+tqdm>=4.65
+pyarrow>=12.0
+requests>=2.31
+scikit-learn>=1.3
