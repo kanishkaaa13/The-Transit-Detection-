@@ -1,20 +1,20 @@
 {
   "seq_len": 201,
   "dropout": 0.3,
-  "n_train": 1000,
-  "n_val": 200,
-  "n_test": 200,
-  "batch_size": 64,
-  "epochs": 5,
+  "n_train": 10000,
+  "n_val": 2000,
+  "n_test": 2000,
+  "batch_size": 128,
+  "epochs": 30,
   "lr": 0.0003,
   "weight_decay": 0.0001,
   "seed": 42,
-  "best_val_auc": 0.9673,
+  "best_val_auc": 0.980832,
   "test_metrics": {
-    "accuracy": 0.535,
-    "precision": 1.0,
-    "recall": 0.07,
-    "f1": 0.130841,
-    "roc_auc": 0.95
+    "accuracy": 0.955,
+    "precision": 0.984043,
+    "recall": 0.925,
+    "f1": 0.953608,
+    "roc_auc": 0.987854
   }
 }
