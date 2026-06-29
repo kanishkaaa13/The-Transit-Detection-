@@ -86,3 +86,6 @@
 14:39:19  INFO      ROC curve → plots\cnn_roc_curve.png
 14:39:20  INFO      Example inputs → plots\cnn_example_inputs.png
 14:47:32  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
+14:48:41  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
+14:48:41  INFO      [TIC_POS] P=4.5000 d  δ=10000.0 ppm  SNR=195.87  CNN=0.997
+14:48:41  INFO      [TIC_NEG] P=4.5000 d  δ=500.0 ppm  SNR=7.26  CNN=0.228
