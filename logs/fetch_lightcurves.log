@@ -298,3 +298,70 @@
 15:38:02  INFO        No 2-min SPOC data found for TIC 468216951.
 15:38:03  INFO      [TIC 410305216] Processing …
 15:38:04  INFO        Found 2 sector(s) for TIC 410305216. Downloading …
+15:38:29  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:38:34  INFO      2% (376/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:38:34  INFO        Saved 33964 cadences -> data\raw\lightcurves\TIC_410305216.csv
+15:38:35  INFO      [TIC 365276508] Processing …
+15:38:43  INFO        No 2-min SPOC data found for TIC 365276508.
+15:38:44  INFO      [TIC 322277637] Processing …
+15:39:06  INFO        No 2-min SPOC data found for TIC 322277637.
+15:39:07  INFO      [TIC 388242409] Processing …
+15:39:09  INFO        Found 2 sector(s) for TIC 388242409. Downloading …
+15:39:30  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:39:51  INFO      0% (72/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:39:51  INFO        Saved 34316 cadences -> data\raw\lightcurves\TIC_388242409.csv
+15:39:52  INFO      [TIC 369366139] Processing …
+15:39:53  INFO        Found 2 sector(s) for TIC 369366139. Downloading …
+15:40:13  INFO      3% (500/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:40:29  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:40:29  INFO        Saved 30038 cadences -> data\raw\lightcurves\TIC_369366139.csv
+15:40:30  INFO      [TIC 388281544] Processing …
+15:40:54  INFO        No 2-min SPOC data found for TIC 388281544.
+15:40:55  INFO      [TIC 383355585] Processing …
+15:41:01  INFO        No 2-min SPOC data found for TIC 383355585.
+15:41:02  INFO      [TIC 257774150] Processing …
+15:41:11  INFO        No 2-min SPOC data found for TIC 257774150.
+15:41:12  INFO      [TIC 402112302] Processing …
+15:41:28  INFO        No 2-min SPOC data found for TIC 402112302.
+15:41:29  INFO      [TIC 279799236] Processing …
+15:41:30  INFO        Found 2 sector(s) for TIC 279799236. Downloading …
+15:41:49  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:42:11  INFO      2% (373/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:42:11  INFO        Saved 33965 cadences -> data\raw\lightcurves\TIC_279799236.csv
+15:42:12  INFO      [TIC 410341528] Processing …
+15:42:23  INFO        No 2-min SPOC data found for TIC 410341528.
+15:42:24  INFO      [TIC 402112153] Processing …
+15:42:34  INFO        No 2-min SPOC data found for TIC 402112153.
+15:42:35  INFO      [TIC 290267818] Processing …
+15:42:41  INFO        No 2-min SPOC data found for TIC 290267818.
+15:42:42  INFO      [TIC 318614461] Processing …
+15:42:47  INFO        No 2-min SPOC data found for TIC 318614461.
+15:42:48  INFO      [TIC 302994978] Processing …
+15:42:49  INFO        Found 2 sector(s) for TIC 302994978. Downloading …
+15:43:08  INFO      3% (503/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:43:28  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:43:28  INFO        Saved 33869 cadences -> data\raw\lightcurves\TIC_302994978.csv
+15:43:29  INFO      [TIC 327829946] Processing …
+15:43:36  INFO        No 2-min SPOC data found for TIC 327829946.
+15:43:37  INFO      [TIC 424996659] Processing …
+15:43:42  INFO        No 2-min SPOC data found for TIC 424996659.
+15:43:43  INFO      [TIC 369380876] Processing …
+15:43:48  INFO        No 2-min SPOC data found for TIC 369380876.
+15:43:49  INFO      [TIC 401821603] Processing …
+15:43:50  INFO        Found 1 sector(s) for TIC 401821603. Downloading …
+15:44:04  INFO      3% (500/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:44:04  INFO        Saved 14631 cadences -> data\raw\lightcurves\TIC_401821603.csv
+15:44:05  INFO      [TIC 468148894] Processing …
+15:44:06  INFO        Found 2 sector(s) for TIC 468148894. Downloading …
+15:44:28  INFO      3% (498/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:44:53  INFO      2% (375/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:44:53  INFO        Saved 34113 cadences -> data\raw\lightcurves\TIC_468148894.csv
+15:44:54  INFO      [TIC 410366090] Processing …
+15:45:39  INFO        No 2-min SPOC data found for TIC 410366090.
+15:45:40  INFO      [TIC 327856665] Processing …
+15:45:41  INFO        Found 1 sector(s) for TIC 327856665. Downloading …
+15:45:52  INFO      2% (373/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:45:52  INFO        Saved 19377 cadences -> data\raw\lightcurves\TIC_327856665.csv
+15:45:53  INFO      [TIC 270286001] Processing …
+15:46:04  INFO        No 2-min SPOC data found for TIC 270286001.
+15:46:05  INFO      [TIC 257726882] Processing …
