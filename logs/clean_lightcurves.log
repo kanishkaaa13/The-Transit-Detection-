@@ -1,0 +1,4 @@
+15:00:11  INFO      Processing first 3 of 3 available file(s).
+15:00:11  INFO      Parameters: sigma=5.0 | window=3.0 d | poly_order=2 | overwrite=False
+15:00:13  INFO        Median clipped  : 0.00%
+  Median n_clean  : 98407 pts

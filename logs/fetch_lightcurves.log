@@ -1,0 +1,23 @@
+14:56:51  INFO      Running on first 3 / 862 target(s).
+14:56:51  INFO      [TIC 468184895] Processing …
+14:56:55  INFO        Found 7 sector(s) for TIC 468184895. Downloading …
+14:57:15  INFO      3% (498/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:22  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:28  INFO      0% (70/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:34  INFO      8% (1656/20262) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:39  INFO      1% (251/19536) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:43  INFO      1% (192/18412) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:48  INFO      7% (1280/18170) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:57:50  INFO      [TIC 419666736] Processing …
+14:57:51  INFO        Found 6 sector(s) for TIC 419666736. Downloading …
+14:57:58  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:08  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:15  INFO      0% (73/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:20  INFO      8% (1656/20262) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:26  INFO      1% (193/18412) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:37  INFO      7% (1280/18170) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:38  INFO      [TIC 290492819] Processing …
+14:58:39  INFO        Found 3 sector(s) for TIC 290492819. Downloading …
+14:58:43  INFO      3% (506/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:47  INFO      2% (385/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+14:58:51  INFO      0% (40/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).

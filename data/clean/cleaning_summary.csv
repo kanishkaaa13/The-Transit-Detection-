@@ -1,0 +1,4 @@
+tic_id,n_raw,n_after_nan,n_after_clip,n_clean,clip_pct,median_flux,sg_window_days,status
+TIC_290492819,50665,50665,50659,50659,0.01,1.0,3.0,cleaned
+TIC_419666736,98407,98407,98407,98407,0.0,1.0,3.0,cleaned
+TIC_468184895,113658,113658,113658,113658,0.0,1.0,3.0,cleaned

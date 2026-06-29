@@ -497,7 +497,7 @@ def plot_summary(df: pd.DataFrame) -> None:
     fig.tight_layout()
     fig.savefig(out, dpi=_STYLE["dpi"], facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
-    log.info("Summary scatter saved → %s", out)
+    log.info("Summary scatter saved -> %s", out)
 
 
 # ---------------------------------------------------------------------------
@@ -584,7 +584,7 @@ def plot_all(
                 out_path=out_png,
                 bin_width=bin_width,
             )
-            log.info("[%s] Saved → %s", tic_id, out_png)
+            log.info("[%s] Saved -> %s", tic_id, out_png)
             counts["plotted"] += 1
         except Exception as exc:    # noqa: BLE001
             log.warning("[%s] Plot failed: %s", tic_id, exc)

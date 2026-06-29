@@ -196,7 +196,7 @@ def _save_lightcurve(lc: lk.LightCurve, tic_id: int) -> Path:
         {"time": time_vals, "flux": flux_vals, "flux_err": ferr_vals}
     )
     df.to_csv(out_path, index=False)
-    log.info("  Saved %d cadences → %s", len(df), out_path)
+    log.info("  Saved %d cadences -> %s", len(df), out_path)
     return out_path
 
 
@@ -248,7 +248,7 @@ def _plot_first_star(lc: lk.LightCurve, tic_id: int) -> None:
     fig.tight_layout()
     fig.savefig(_PLOT_PATH, dpi=150)
     plt.close(fig)
-    log.info("Diagnostic plot saved → %s", _PLOT_PATH)
+    log.info("Diagnostic plot saved -> %s", _PLOT_PATH)
 
 
 # ---------------------------------------------------------------------------

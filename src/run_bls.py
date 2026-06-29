@@ -384,7 +384,7 @@ def _plot_phase_fold(
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     plt.close(fig)
-    log.info("Phase-fold plot saved → %s", out)
+    log.info("Phase-fold plot saved -> %s", out)
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +433,7 @@ def _plot_periodogram(
     fig.tight_layout()
     fig.savefig(out, dpi=150)
     plt.close(fig)
-    log.info("Periodogram plot saved → %s", out)
+    log.info("Periodogram plot saved -> %s", out)
 
 
 # ---------------------------------------------------------------------------
@@ -521,7 +521,7 @@ def run_bls_batch(
     all_df  = all_df[_RESULT_COLS]
 
     all_df.to_csv(_RESULTS_CSV, index=False)
-    log.info("Results saved → %s  (%d rows)", _RESULTS_CSV, len(all_df))
+    log.info("Results saved -> %s  (%d rows)", _RESULTS_CSV, len(all_df))
 
     # ── Diagnostic plots for top-N by BLS power ─────────────────────────────
     if n_plots > 0:

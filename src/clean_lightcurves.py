@@ -426,7 +426,7 @@ def _plot_cleaning_summary(
     out = _PLOT_DIR / f"cleaning_summary_{tic_id}.png"
     fig.savefig(out, dpi=150)
     plt.close(fig)
-    log.info("Diagnostic plot saved → %s", out)
+    log.info("Diagnostic plot saved -> %s", out)
 
 
 # ---------------------------------------------------------------------------
@@ -673,7 +673,7 @@ def main() -> None:
     summary_path = CFG.CLEAN_DIR / "cleaning_summary.csv"
     CFG.CLEAN_DIR.mkdir(parents=True, exist_ok=True)
     summary.to_csv(summary_path, index=False)
-    log.info("Per-star summary saved → %s", summary_path)
+    log.info("Per-star summary saved -> %s", summary_path)
 
     _print_summary(summary)
 

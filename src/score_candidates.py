@@ -527,7 +527,7 @@ def plot_candidate(
     fig.savefig(out, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
     plt.close(fig)
-    log.info("Candidate plot → %s", out)
+    log.info("Candidate plot -> %s", out)
 
 
 # ============================================================================
@@ -638,7 +638,7 @@ def plot_population_summary(df: pd.DataFrame) -> None:
     fig.savefig(out, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
     plt.close(fig)
-    log.info("Population summary → %s", out)
+    log.info("Population summary -> %s", out)
 
 
 # ============================================================================
@@ -740,7 +740,7 @@ def score_batch(
             all_df[col] = np.nan
     all_df = all_df[_OUT_COLS + ["status"]]
     all_df.to_csv(_OUT_CSV, index=False)
-    log.info("Stage 2 CSV saved → %s  (%d rows total)", _OUT_CSV, len(all_df))
+    log.info("Stage 2 CSV saved -> %s  (%d rows total)", _OUT_CSV, len(all_df))
 
     # Diagnostic plots for confirmed candidates (from this batch)
     ok_new    = new_df[new_df.get("status", pd.Series(dtype=str)) == "ok"] \
@@ -811,7 +811,7 @@ def _print_summary(df: pd.DataFrame) -> None:
             .sort_values("CNN_score", ascending=False)
             .to_string(index=False),
         )
-        log.info("  Full table → %s", _OUT_CSV)
+        log.info("  Full table -> %s", _OUT_CSV)
 
 
 # ============================================================================

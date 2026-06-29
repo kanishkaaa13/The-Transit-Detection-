@@ -1,3 +1,8 @@
 14:27:59  INFO      [TIC_99999] P=2.0611 d  δ=0.00536  T=0.090 d  t₀=1.5022  power=152.766  snr=152.8
 14:28:34  INFO      [TIC_99999] P=2.0611 d  δ=0.00536  T=0.090 d  t₀=1.5022  power=152.766  snr=152.8
 14:29:00  INFO      [TIC_99999] P=2.0611 d  δ=0.00536  T=0.090 d  t₀=1.5022  power=152.766  snr=152.8
+15:01:52  INFO      Processing 3 file(s) from data\clean\lightcurves.
+15:01:52  INFO      BLS parameters: P=[0.50, 15.00] d | min_transits=3 | n_plots=5 | overwrite=False
+15:02:48  WARNING   Plot failed for TIC_468184895: The maximum transit duration must be shorter than the minimum period
+15:02:48  WARNING   Plot failed for TIC_419666736: The maximum transit duration must be shorter than the minimum period
+15:02:49  WARNING   Plot failed for TIC_290492819: The maximum transit duration must be shorter than the minimum period

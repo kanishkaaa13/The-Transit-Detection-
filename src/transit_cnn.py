@@ -556,7 +556,7 @@ def train(
     _MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
     torch.save(best_state, _WEIGHTS_PT)
-    log.info("Weights saved → %s", _WEIGHTS_PT)
+    log.info("Weights saved -> %s", _WEIGHTS_PT)
 
     config = {
         "seq_len":      seq_len,
@@ -574,7 +574,7 @@ def train(
     }
     with open(_CONFIG_JSON, "w") as f:
         json.dump(config, f, indent=2)
-    log.info("Config saved → %s", _CONFIG_JSON)
+    log.info("Config saved -> %s", _CONFIG_JSON)
 
     # ── 4.6  Plots ────────────────────────────────────────────────────────────
     if save_plots:
@@ -649,7 +649,7 @@ def _plot_training_curves(history: dict) -> None:
     out = _PLOT_DIR / "cnn_training_curves.png"
     fig.savefig(out, dpi=150, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
-    log.info("Training curves → %s", out)
+    log.info("Training curves -> %s", out)
 
 
 def _plot_roc(logits: np.ndarray, labels: np.ndarray) -> None:
@@ -677,7 +677,7 @@ def _plot_roc(logits: np.ndarray, labels: np.ndarray) -> None:
     fig.tight_layout()
     fig.savefig(out, dpi=150, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
-    log.info("ROC curve → %s", out)
+    log.info("ROC curve -> %s", out)
 
 
 def _plot_example_inputs(X: np.ndarray, y: np.ndarray, seq_len: int) -> None:
@@ -710,7 +710,7 @@ def _plot_example_inputs(X: np.ndarray, y: np.ndarray, seq_len: int) -> None:
     out = _PLOT_DIR / "cnn_example_inputs.png"
     fig.savefig(out, dpi=150, facecolor=fig.get_facecolor(), bbox_inches="tight")
     plt.close(fig)
-    log.info("Example inputs → %s", out)
+    log.info("Example inputs -> %s", out)
 
 
 # ============================================================================
