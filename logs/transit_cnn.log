@@ -99,3 +99,20 @@
 15:05:23  INFO        Candidate list:
        TIC_ID  period    depth  duration    SNR  CNN_score
 TIC_419666736 0.61106 0.004834    0.0475 76.519     0.9833
+21:48:39  INFO      BLS rows: 63 total  /  63 with status=ok
+21:48:39  INFO      Scoring 63 stars.
+21:48:39  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
+21:48:39  INFO      Resuming: 3 rows already in data\results\stage2_candidates.csv.
+21:48:42  INFO      Stage 2 CSV saved -> data\results\stage2_candidates.csv  (63 rows total)
+21:48:42  INFO      New candidates this run: 3 / 60
+21:48:43  INFO      Candidate plot -> plots\candidates\TIC_468155076.png
+21:48:43  INFO      Candidate plot -> plots\candidates\TIC_318612552.png
+21:48:44  INFO      Candidate plot -> plots\candidates\TIC_302994978.png
+21:48:44  INFO        Candidate list:
+       TIC_ID    period    depth  duration    SNR  CNN_score
+TIC_468155076  1.034395 0.005732    0.0475 71.534     1.0000
+TIC_318612552 13.995113 0.013030    0.3270 29.197     1.0000
+TIC_419666736  0.611060 0.004834    0.0475 76.519     0.9833
+TIC_302994978 14.594595 0.005042    0.3270 48.531     0.9542
+21:48:44  INFO        Full table -> data\results\stage2_candidates.csv
+21:48:44  INFO      Population summary -> plots\stage2_population.png

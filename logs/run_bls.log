@@ -6,3 +6,20 @@
 15:02:48  WARNING   Plot failed for TIC_468184895: The maximum transit duration must be shorter than the minimum period
 15:02:48  WARNING   Plot failed for TIC_419666736: The maximum transit duration must be shorter than the minimum period
 15:02:49  WARNING   Plot failed for TIC_290492819: The maximum transit duration must be shorter than the minimum period
+21:37:20  INFO      Processing 63 file(s) from data\clean\lightcurves.
+21:37:20  INFO      BLS parameters: P=[0.50, 15.00] d | min_transits=3 | n_plots=5 | overwrite=False
+21:37:20  INFO      Found 3 previously computed results.
+21:39:19  INFO      [TIC_290492819] Already processed — skipping.
+21:47:25  INFO      [TIC_419666736] Already processed — skipping.
+21:47:51  INFO      [TIC_468184895] Already processed — skipping.
+21:48:04  INFO      Results saved -> data\results\bls_results.csv  (63 rows)
+21:48:05  INFO      Phase-fold plot saved -> plots\bls_fold_TIC_468155076.png
+21:48:05  WARNING   Plot failed for TIC_468155076: The maximum transit duration must be shorter than the minimum period
+21:48:05  INFO      Phase-fold plot saved -> plots\bls_fold_TIC_401819729.png
+21:48:05  WARNING   Plot failed for TIC_401819729: The maximum transit duration must be shorter than the minimum period
+21:48:05  INFO      Phase-fold plot saved -> plots\bls_fold_TIC_257772053.png
+21:48:06  WARNING   Plot failed for TIC_257772053: The maximum transit duration must be shorter than the minimum period
+21:48:06  INFO      Phase-fold plot saved -> plots\bls_fold_TIC_346745925.png
+21:48:06  WARNING   Plot failed for TIC_346745925: The maximum transit duration must be shorter than the minimum period
+21:48:06  INFO      Phase-fold plot saved -> plots\bls_fold_TIC_267194964.png
+21:48:06  WARNING   Plot failed for TIC_267194964: The maximum transit duration must be shorter than the minimum period
