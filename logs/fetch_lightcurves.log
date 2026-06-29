@@ -456,3 +456,92 @@
 18:21:33  INFO        No 2-min SPOC data found for TIC 468155245.
 18:21:34  INFO      [TIC 318612553] Processing …
 18:21:36  INFO        Found 5 sector(s) for TIC 318612553. Downloading …
+18:21:43  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:21:52  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:21:57  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:22:04  INFO      0% (71/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:22:11  INFO      8% (1656/20262) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:22:13  INFO      [TIC 394820284] Processing …
+18:22:43  INFO        No 2-min SPOC data found for TIC 394820284.
+18:22:44  INFO      [TIC 325638022] Processing …
+18:23:00  INFO        No 2-min SPOC data found for TIC 325638022.
+18:23:01  INFO      [TIC 327829910] Processing …
+18:23:08  INFO        No 2-min SPOC data found for TIC 327829910.
+18:23:09  INFO      [TIC 424989134] Processing …
+18:23:15  INFO        No 2-min SPOC data found for TIC 424989134.
+18:23:16  INFO      [TIC 468190621] Processing …
+18:23:24  INFO        No 2-min SPOC data found for TIC 468190621.
+18:23:25  INFO      [TIC 274226424] Processing …
+18:23:55  INFO        No 2-min SPOC data found for TIC 274226424.
+18:23:56  INFO      [TIC 468148897] Processing …
+18:24:05  INFO        No 2-min SPOC data found for TIC 468148897.
+18:24:06  INFO      [TIC 327856538] Processing …
+18:24:18  INFO        No 2-min SPOC data found for TIC 327856538.
+18:24:19  INFO      [TIC 451606572] Processing …
+18:24:34  INFO        No 2-min SPOC data found for TIC 451606572.
+18:24:35  INFO      [TIC 274034166] Processing …
+18:25:05  INFO        No 2-min SPOC data found for TIC 274034166.
+18:25:06  INFO      [TIC 468182953] Processing …
+18:25:07  INFO        Found 1 sector(s) for TIC 468182953. Downloading …
+18:25:13  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:25:15  INFO      [TIC 468192563] Processing …
+18:25:22  INFO        No 2-min SPOC data found for TIC 468192563.
+18:25:23  INFO      [TIC 451558290] Processing …
+18:25:31  INFO        No 2-min SPOC data found for TIC 451558290.
+18:25:32  INFO      [TIC 394758096] Processing …
+18:25:33  INFO        Found 2 sector(s) for TIC 394758096. Downloading …
+18:25:39  INFO      3% (498/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:25:44  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:25:46  INFO      [TIC 317351809] Processing …
+18:25:47  INFO        Found 1 sector(s) for TIC 317351809. Downloading …
+18:25:52  INFO      3% (500/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:25:53  INFO      [TIC 369936058] Processing …
+18:26:08  INFO        No 2-min SPOC data found for TIC 369936058.
+18:26:09  INFO      [TIC 424996784] Processing …
+18:26:16  INFO        No 2-min SPOC data found for TIC 424996784.
+18:26:17  INFO      [TIC 257342510] Processing …
+18:26:18  INFO        Found 2 sector(s) for TIC 257342510. Downloading …
+18:26:25  INFO      0% (32/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:26:30  INFO      0% (71/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:26:31  INFO      [TIC 362068387] Processing …
+18:26:41  INFO        No 2-min SPOC data found for TIC 362068387.
+18:26:42  INFO      [TIC 317351815] Processing …
+18:26:53  INFO        No 2-min SPOC data found for TIC 317351815.
+18:26:54  INFO      [TIC 318273916] Processing …
+18:26:55  INFO        Found 2 sector(s) for TIC 318273916. Downloading …
+18:27:01  INFO      0% (33/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:27:08  INFO      0% (71/19407) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:27:10  INFO      [TIC 468190615] Processing …
+18:27:11  INFO        Found 2 sector(s) for TIC 468190615. Downloading …
+18:27:15  INFO      3% (499/19373) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:27:20  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:27:21  INFO      [TIC 451560638] Processing …
+18:27:22  INFO        Found 1 sector(s) for TIC 451560638. Downloading …
+18:27:27  INFO      2% (374/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+18:27:28  INFO      [TIC 321154325] Processing …
+18:27:38  INFO        No 2-min SPOC data found for TIC 321154325.
+18:27:39  INFO      [TIC 257342621] Processing …
+18:27:44  INFO        No 2-min SPOC data found for TIC 257342621.
+18:27:45  INFO      [TIC 327831756] Processing …
+18:27:50  INFO        No 2-min SPOC data found for TIC 327831756.
+18:27:51  INFO      [TIC 270277246] Processing …
+18:28:19  INFO        No 2-min SPOC data found for TIC 270277246.
+18:28:20  INFO      [TIC 257772292] Processing …
+18:28:41  INFO        No 2-min SPOC data found for TIC 257772292.
+18:28:42  INFO      [TIC 468184882] Processing …
+18:28:49  INFO        No 2-min SPOC data found for TIC 468184882.
+18:28:50  INFO      [TIC 468179086] Processing …
+18:28:59  INFO        No 2-min SPOC data found for TIC 468179086.
+18:29:00  INFO      [TIC 362083806] Processing …
+18:29:16  INFO        No 2-min SPOC data found for TIC 362083806.
+18:29:17  INFO      [TIC 362124742] Processing …
+18:29:37  INFO        No 2-min SPOC data found for TIC 362124742.
+18:29:38  INFO      [TIC 267118794] Processing …
+18:29:52  INFO        No 2-min SPOC data found for TIC 267118794.
+18:29:53  INFO      [TIC 257772030] Processing …
+18:30:10  INFO        No 2-min SPOC data found for TIC 257772030.
+18:30:11  INFO      [TIC 257738056] Processing …
+18:30:22  INFO        No 2-min SPOC data found for TIC 257738056.
+18:30:23  INFO      [TIC 317246315] Processing …
+18:30:40  INFO        No 2-min SPOC data found for TIC 317246315.
+18:30:41  INFO      [TIC 410354774] Processing …
