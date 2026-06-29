@@ -43,3 +43,7 @@
 15:20:12  INFO      2% (381/19811) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
 15:20:16  INFO      0% (31/16812) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
 15:20:28  INFO      8% (1659/20262) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:20:50  INFO      1% (251/19536) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:20:55  INFO      1% (191/18412) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:21:01  INFO      7% (1279/18170) of the cadences will be ignored due to the quality mask (quality_bitmask=17087).
+15:21:03  INFO      [TIC 317154919] Processing …
