@@ -85,3 +85,4 @@
 14:39:19  INFO      Training curves → plots\cnn_training_curves.png
 14:39:19  INFO      ROC curve → plots\cnn_roc_curve.png
 14:39:20  INFO      Example inputs → plots\cnn_example_inputs.png
+14:47:32  INFO      CNN loaded (seq_len=201, val_auc=0.9808, test_auc=0.9879)
