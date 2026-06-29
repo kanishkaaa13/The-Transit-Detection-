@@ -2,3 +2,12 @@
 15:00:11  INFO      Parameters: sigma=5.0 | window=3.0 d | poly_order=2 | overwrite=False
 15:00:13  INFO        Median clipped  : 0.00%
   Median n_clean  : 98407 pts
+21:36:56  INFO      Processing all 63 file(s) in data\raw\lightcurves.
+21:36:56  INFO      Parameters: sigma=5.0 | window=3.0 d | poly_order=2 | overwrite=False
+21:36:57  INFO      Diagnostic plot saved -> plots\cleaning_summary_TIC_2054445521.png
+21:37:02  INFO      [TIC_290492819] Already cleaned — skipping (use --overwrite to redo).
+21:37:10  INFO      [TIC_419666736] Already cleaned — skipping (use --overwrite to redo).
+21:37:11  INFO      [TIC_468184895] Already cleaned — skipping (use --overwrite to redo).
+21:37:12  INFO      Per-star summary saved -> data\clean\cleaning_summary.csv
+21:37:12  INFO        Median clipped  : 0.00%
+  Median n_clean  : 34326 pts
