@@ -63,6 +63,7 @@ export interface DetectionResult {
   stellarAge: number;
   inHabitableZone: boolean;
   planetType: string;
+  contratio?: number;
 }
 
 // Simple planet type classification stub
@@ -518,6 +519,14 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
       let distance = 50 + (numId % 1000);
       let stellarAge = 1.5 + (digitSum % 8) * 0.8;
       let inHabitableZone = (digitSum % 7) === 0;
+      let contratio = 0.02;
+
+      // Inject anomalous parameters for debugging/testing validation warnings
+      if (numId > 0 && numId % 13 === 0) {
+        period = 0.42;
+        rPlanet = 24.5;
+        snr = 5.2;
+      }
 
       // Force realistic values for demo TIC IDs already in the repo
       if (ticId === '451598465') {
@@ -583,6 +592,11 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         inHabitableZone = true;
       }
 
+      // Specific mock override for Stellar Blend contratio
+      if (ticId === '257325189') {
+        contratio = 90.0;
+      }
+
       // Generate label based on parameters
       const planetType = getPlanetTypeLabel(classification, rPlanet, period);
 
@@ -598,7 +612,8 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         distance,
         stellarAge,
         inHabitableZone,
-        planetType
+        planetType,
+        contratio
       });
     }, 1500);
   });
@@ -1825,6 +1840,34 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                           </span>
                         </div>
                       )}
+
+                      {/* Parameter Validation Warnings */}
+                      {(() => {
+                        const warnings: string[] = [];
+                        if (detectionResult.rPlanet > 22) {
+                          warnings.push("⚠ Likely Eclipsing Binary — planet size exceeds physical limit");
+                        }
+                        if (detectionResult.depth * (1 + (detectionResult.contratio ?? 0.02)) > 0.1) {
+                          warnings.push("⚠ Blend contamination suspected");
+                        }
+                        if (detectionResult.period < 0.5) {
+                          warnings.push("⚠ Ultra-short period — grazing eclipse possible");
+                        }
+                        if (detectionResult.snr < 7) {
+                          warnings.push("⚠ Low SNR — marginal detection, treat with caution");
+                        }
+                        if (warnings.length === 0) return null;
+                        return (
+                          <div className="space-y-2">
+                            {warnings.map((msg, i) => (
+                              <div key={i} className="flex items-start gap-2 p-2 bg-amber-550/10 border border-amber-500/20 text-amber-400 rounded-md text-[10px] font-medium leading-relaxed">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400 mt-0.5" />
+                                <span>{msg}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
 
                       {/* Event TOI ID */}
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800/40">
