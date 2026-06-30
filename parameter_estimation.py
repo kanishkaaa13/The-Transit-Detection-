@@ -182,6 +182,82 @@ def estimate_transit_duration(
     return T_hours
 
 
+def estimate_snr(
+    tmag: float,
+    transit_depth_fraction: float,
+    n_transits: int,
+    transit_duration_hours: float,
+) -> float:
+    """
+    Estimate the signal-to-noise ratio (SNR) of a transit detection with TESS.
+
+    Noise model
+    -----------
+    TESS photometric precision is approximately 60 ppm/hr^0.5 at Tmag = 10.
+    For other magnitudes it scales as:
+
+        noise_floor (ppm/hr^0.5) = 60 * 10^(0.2 * (Tmag - 10))
+
+    Per-transit noise (ppm) integrated over one transit of duration T (hours):
+
+        noise_per_transit = noise_floor / sqrt(T)
+
+    Combined noise over N independent transits:
+
+        noise_combined = noise_per_transit / sqrt(N)
+
+    SNR:
+
+        SNR = depth_ppm / noise_combined
+            = depth_ppm * sqrt(N * T) / noise_floor
+
+    Parameters
+    ----------
+    tmag : float
+        TESS magnitude of the host star.
+    transit_depth_fraction : float
+        Fractional transit depth (0 < depth < 1). E.g. 0.01 for 1%.
+    n_transits : int
+        Number of observed transits to co-add.
+    transit_duration_hours : float
+        Duration of a single transit in hours.
+
+    Returns
+    -------
+    float
+        Estimated SNR (dimensionless).
+
+    Raises
+    ------
+    ValueError
+        If any argument is out of its valid range.
+    """
+    if not (0 < transit_depth_fraction < 1):
+        raise ValueError(
+            f"transit_depth_fraction must be in (0, 1), got {transit_depth_fraction}"
+        )
+    if n_transits < 1:
+        raise ValueError(
+            f"n_transits must be >= 1, got {n_transits}"
+        )
+    if transit_duration_hours <= 0:
+        raise ValueError(
+            f"transit_duration_hours must be positive, got {transit_duration_hours}"
+        )
+
+    # TESS noise floor at this magnitude (ppm per sqrt-hour)
+    _TESS_NOISE_REF_PPM = 60.0   # ppm/hr^0.5 at Tmag = 10
+    noise_floor = _TESS_NOISE_REF_PPM * (10.0 ** (0.2 * (tmag - 10.0)))
+
+    # Transit depth in ppm
+    depth_ppm = transit_depth_fraction * 1e6
+
+    # SNR = depth * sqrt(N * T) / noise_floor
+    snr = depth_ppm * (n_transits * transit_duration_hours) ** 0.5 / noise_floor
+
+    return snr
+
+
 # ---------------------------------------------------------------------------
 # Quick verification block
 # ---------------------------------------------------------------------------
@@ -226,3 +302,17 @@ if __name__ == "__main__":
     for rho, per, a_au, desc in dur_examples:
         t = estimate_transit_duration(rho, per, a_au)
         print(f"{rho:<18.2f} {per:<16.2f} {a_au:<10.3f} {t:<12.4f} {desc}")
+
+    # --- estimate_snr examples ---
+    print()
+    snr_examples = [
+        # (tmag, depth, n_transits, t_dur_h, description)
+        (10.0, 0.01,  13, 13.0, "Jupiter analog, Tmag=10, 13 transits"),
+        (12.0, 0.005,  5,  3.0, "Smaller planet, fainter star"),
+        ( 8.0, 0.001, 50,  2.0, "Bright star, many short transits"),
+    ]
+    print(f"{'Tmag':<8} {'Depth':<10} {'N_tr':<8} {'T_dur(h)':<12} {'SNR':<10} Description")
+    print("-" * 76)
+    for tmag, depth, n_tr, t_dur, desc in snr_examples:
+        snr = estimate_snr(tmag, depth, n_tr, t_dur)
+        print(f"{tmag:<8.1f} {depth:<10.4f} {n_tr:<8d} {t_dur:<12.1f} {snr:<10.2f} {desc}")
