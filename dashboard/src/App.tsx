@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
+import { apiPath } from './config';
 import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
 import { PriorityQueue } from './components/PriorityQueue';
@@ -155,7 +156,7 @@ function App() {
 
   // Load count of stars and calculate stats on mount
   useEffect(() => {
-    fetch('/api/sky-map-stars')
+    fetch(apiPath('/api/sky-map-stars'))
       .then(res => res.json())
       .then((data: any[]) => {
         setStarsData(data);

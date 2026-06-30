@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiPath } from '../config';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -648,7 +649,7 @@ export function LightCurveViewer({
 
   // Load available TIC IDs on mount
   useEffect(() => {
-    fetch('/api/tic-ids')
+    fetch(apiPath('/api/tic-ids'))
       .then(res => {
         if (!res.ok) throw new Error("Failed to load list");
         return res.json();

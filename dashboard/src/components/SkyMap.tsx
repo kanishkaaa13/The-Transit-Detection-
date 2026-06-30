@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { apiPath } from '../config';
 import { 
   ResponsiveContainer, 
   ScatterChart, 
@@ -79,7 +80,7 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   useEffect(() => {
     setLoading(true);
     setStarLoadError(null);
-    fetch('/api/sky-map-stars')
+    fetch(apiPath('/api/sky-map-stars'))
       .then(res => {
         if (!res.ok) throw new Error(`Sky catalog unavailable (HTTP ${res.status})`);
         return res.json();
