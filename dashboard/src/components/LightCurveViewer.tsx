@@ -64,6 +64,8 @@ export interface DetectionResult {
   inHabitableZone: boolean;
   planetType: string;
   contratio?: number;
+  toiNumber?: string;
+  nasaConfirmed?: boolean;
 }
 
 // Simple planet type classification stub
@@ -492,6 +494,12 @@ export function getClassReasoning(data: DetectionResult): ReasoningResult {
   };
 }
 
+// TOI cross-match catalog mapping TIC ID to TOI and NASA Archive Confirmation Status
+const TOI_CATALOG: Record<string, { toiNumber: string; nasaConfirmed: boolean }> = {
+  '451598465': { toiNumber: '1431.01', nasaConfirmed: true },
+  '257738202': { toiNumber: '843.01', nasaConfirmed: false },
+};
+
 // Mock/stub function for signal detection
 export function detectSignal(ticId: string): Promise<DetectionResult> {
   return new Promise((resolve) => {
@@ -600,6 +608,10 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
       // Generate label based on parameters
       const planetType = getPlanetTypeLabel(classification, rPlanet, period);
 
+      const crossMatch = TOI_CATALOG[ticId];
+      const toiNumber = crossMatch?.toiNumber;
+      const nasaConfirmed = crossMatch?.nasaConfirmed;
+
       resolve({
         event,
         classification,
@@ -613,7 +625,9 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         stellarAge,
         inHabitableZone,
         planetType,
-        contratio
+        contratio,
+        toiNumber,
+        nasaConfirmed
       });
     }, 1500);
   });
@@ -1869,10 +1883,46 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                         );
                       })()}
 
-                      {/* Event TOI ID */}
+                      {/* Event TOI ID & NASA Archive Cross-match */}
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800/40">
                         <span className="text-sm text-slate-400">Object Designation</span>
-                        <span className="text-sm font-bold text-slate-100 tracking-wide">{detectionResult.event}</span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-bold text-slate-100 tracking-wide">{detectionResult.event}</span>
+                          {detectionResult.toiNumber ? (
+                            <a
+                              href={`https://exoplanetarchive.ipac.caltech.edu/overview/TOI-${detectionResult.toiNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[9px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              ✓ Known TOI {detectionResult.toiNumber}
+                            </a>
+                          ) : (
+                            <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full font-semibold">
+                              Unconfirmed Candidate
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* NASA Confirmation Status Row */}
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-800/40 text-xs">
+                        <span className="text-slate-400">Confirmed by NASA?</span>
+                        {detectionResult.toiNumber ? (
+                          detectionResult.nasaConfirmed ? (
+                            <span className="text-[10.5px] text-emerald-450 font-semibold bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
+                              ✓ NASA Confirmed Planet
+                            </span>
+                          ) : (
+                            <span className="text-[10.5px] text-amber-450 font-medium bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                              Candidate — Awaiting Confirmation
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-[10.5px] text-slate-450 font-medium bg-slate-500/5 px-2 py-0.5 rounded border border-slate-800">
+                            Candidate — Awaiting Confirmation
+                          </span>
+                        )}
                       </div>
 
                       {/* Confidence Progress bar / Gauge */}
