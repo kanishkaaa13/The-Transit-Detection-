@@ -258,6 +258,93 @@ def estimate_snr(
     return snr
 
 
+def check_habitable_zone(
+    teff_kelvin: float,
+    star_luminosity_solar: float,
+    semimajor_axis_au: float,
+) -> dict:
+    """
+    Check whether a planet lies within the habitable zone (HZ) using
+    Kopparapu et al. (2013) empirical flux boundaries.
+
+    The stellar flux limits are temperature-corrected via a 4th-order
+    polynomial in (T_eff - 5780) K, using the published coefficients for
+    the "Recent Venus" (inner) and "Early Mars" (outer) boundaries:
+
+        S_eff = S_sun + a*T + b*T^2 + c*T^3 + d*T^4   (T = Teff - 5780)
+
+    HZ edge in AU:
+
+        a_hz = sqrt(L_star / S_eff)
+
+    Parameters
+    ----------
+    teff_kelvin : float
+        Effective temperature of the host star in Kelvin.
+    star_luminosity_solar : float
+        Stellar luminosity in units of solar luminosity (L_sun).
+    semimajor_axis_au : float
+        Orbital semi-major axis of the planet in AU.
+
+    Returns
+    -------
+    dict
+        {
+          "in_hz"       : bool   -- True if planet is inside the HZ,
+          "hz_inner_au" : float  -- inner HZ edge (AU),
+          "hz_outer_au" : float  -- outer HZ edge (AU),
+        }
+
+    Raises
+    ------
+    ValueError
+        If any argument is non-positive or T_eff is outside 2600-7200 K
+        (the calibration range of Kopparapu et al. 2013).
+    """
+    if teff_kelvin <= 0:
+        raise ValueError(f"teff_kelvin must be positive, got {teff_kelvin}")
+    if not (2600 <= teff_kelvin <= 7200):
+        raise ValueError(
+            f"teff_kelvin={teff_kelvin} K is outside the Kopparapu 2013 "
+            f"calibration range of 2600-7200 K."
+        )
+    if star_luminosity_solar <= 0:
+        raise ValueError(
+            f"star_luminosity_solar must be positive, got {star_luminosity_solar}"
+        )
+    if semimajor_axis_au <= 0:
+        raise ValueError(
+            f"semimajor_axis_au must be positive, got {semimajor_axis_au}"
+        )
+
+    # Kopparapu et al. 2013 Table 3 coefficients
+    # Format: (S_sun, a, b, c, d)
+    # "Recent Venus" inner limit
+    _INNER = (1.7665,  1.3351e-4,  3.1515e-9, -3.3488e-12,  0.0)
+    # "Early Mars" outer limit
+    _OUTER = (0.3240,  5.3221e-5,  1.4288e-9, -1.1049e-12,  0.0)
+
+    T = teff_kelvin - 5780.0  # temperature offset from solar
+
+    def _s_eff(coeffs: tuple) -> float:
+        s_sun, a, b, c, d = coeffs
+        return s_sun + a * T + b * T**2 + c * T**3 + d * T**4
+
+    s_inner = _s_eff(_INNER)
+    s_outer = _s_eff(_OUTER)
+
+    hz_inner_au = (star_luminosity_solar / s_inner) ** 0.5
+    hz_outer_au = (star_luminosity_solar / s_outer) ** 0.5
+
+    in_hz = hz_inner_au <= semimajor_axis_au <= hz_outer_au
+
+    return {
+        "in_hz":       in_hz,
+        "hz_inner_au": hz_inner_au,
+        "hz_outer_au": hz_outer_au,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Quick verification block
 # ---------------------------------------------------------------------------
@@ -316,3 +403,23 @@ if __name__ == "__main__":
     for tmag, depth, n_tr, t_dur, desc in snr_examples:
         snr = estimate_snr(tmag, depth, n_tr, t_dur)
         print(f"{tmag:<8.1f} {depth:<10.4f} {n_tr:<8d} {t_dur:<12.1f} {snr:<10.2f} {desc}")
+
+    # --- check_habitable_zone examples ---
+    print()
+    hz_examples = [
+        # (teff_K, luminosity_solar, a_au, description)
+        (5780, 1.00, 1.00,  "Earth (should be IN HZ)"),
+        (5780, 1.00, 0.50,  "Too hot (Venus-like, INSIDE inner edge)"),
+        (5780, 1.00, 2.00,  "Too cold (Mars-like, OUTSIDE outer edge)"),
+        (3700, 0.04, 0.15,  "M-dwarf planet at 0.15 AU"),
+    ]
+    print(f"{'Teff (K)':<12} {'L (Lsun)':<12} {'a (AU)':<10} {'Inner (AU)':<13} {'Outer (AU)':<13} {'In HZ?':<8} Description")
+    print("-" * 90)
+    for teff, lum, a_au, desc in hz_examples:
+        result = check_habitable_zone(teff, lum, a_au)
+        flag = "YES" if result["in_hz"] else "no"
+        print(
+            f"{teff:<12d} {lum:<12.2f} {a_au:<10.2f} "
+            f"{result['hz_inner_au']:<13.4f} {result['hz_outer_au']:<13.4f} "
+            f"{flag:<8} {desc}"
+        )
