@@ -35,13 +35,30 @@ export interface ReasoningResult {
   rankedFeatures: FeatureTest[];
   summary: string;            // Why this classification? summary text
 }
+
+export interface HabitabilityAssessment {
+  equilibriumTemp: number;     // Kelvin (K)
+  insolationFlux: number;      // Relative to Earth (S_⊕)
+  orbitalDistance: number;     // Astronomical Units (AU)
+  stellarTeff: number;         // Kelvin (K)
+  stellarLuminosity: number;   // Solar Luminosity (L_⊙)
+  hzInnerBoundary: number;     // AU
+  hzOuterBoundary: number;     // AU
+  planetOrbitRadius: number;   // AU
+  planetStatus: 'inner' | 'hz' | 'outer';
+}
+
+export interface EnrichedDetectionResult extends DetectionResult {
+  reasoning: ReasoningResult;
+  habitability: HabitabilityAssessment;
+}
 ```
 
 ---
 
 ## 2. Mock Helper Stubs & Signatures
 
-All helper stubs are exported from [LightCurveViewer.tsx](file:///c:/Users/Kanishka/Desktop/The-Transit-Detection-/dashboard/src/components/LightCurveViewer.tsx).
+All helper stubs are exported from [LightCurveViewer.tsx](file:///c:/Users/Kanishka/Desktop/The-Transit-Detection-/dashboard/src/components/LightCurveViewer.tsx) and [PriorityQueue.tsx](file:///c:/Users/Kanishka/Desktop/The-Transit-Detection-/dashboard/src/components/PriorityQueue.tsx).
 
 ### A. `detectSignal(ticId)`
 Simulates the core exoplanet detection ML pipeline (originally utilizing a 1D CNN classifier).
@@ -76,7 +93,6 @@ export function getPlanetTypeLabel(
   period: number
 ): string
 ```
-* **Integration Plan**: Customize the threshold criteria branch inside this function to align with astronomical guidelines (e.g., Kopparapu habitable zone boundaries or standard planetary radius classifications).
 
 ---
 
@@ -90,48 +106,25 @@ Compiles tabular parameters, stellar properties, and classification states into 
 ```typescript
 export function generateSummary(data: DetectionResult, ticId: string): string
 ```
-* **Integration Plan**: Replace the template conditional blocks with an API request to an LLM provider (e.g. Gemini, Claude, or local Llama model) passing the telemetry variables to synthesize a bespoke text overview:
-```typescript
-const response = await fetch('/api/llm/summarize', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ telemetry: data, target: ticId })
-});
-const { summary } = await response.json();
-return summary;
-```
 
 ---
 
 ### D. `askAboutStar(starData, question, ticId)`
-Lets the user ask natural language questions about the active star's photometry and parameters.
+Lets the user ask natural language questions about the active star's photometry and parameters, utilizing a built-in glossary fallback.
 * **Expected Inputs**:
-  * `data`: `DetectionResult | null` (current star data)
+  * `data`: `EnrichedDetectionResult | null` (current star data with reasoning and habitability nested profiles)
   * `question`: `string` (the scientist's query text)
   * `ticId`: `string` (active TIC ID)
 * **Expected Output**: `Promise<string>` (assistant response paragraph with basic Markdown support)
 * **Signature**:
 ```typescript
 export function askAboutStar(
-  data: DetectionResult | null,
+  data: EnrichedDetectionResult | null,
   question: string,
   ticId: string
 ): Promise<string>
 ```
 * **Integration Plan**: Route the question alongside the star's telemetry payload to an LLM agent endpoint. System instructions can guide the LLM to write in Markdown and answer questions grounded strictly in the provided telemetry parameters.
-```typescript
-const response = await fetch('/api/llm/chat', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ 
-    telemetry: data, 
-    question: question,
-    ticId: ticId 
-  })
-});
-const { reply } = await response.json();
-return reply;
-```
 
 ---
 
@@ -144,9 +137,27 @@ Provides decision interpretability details, ranked by feature importance / SHAP 
 ```typescript
 export function getClassReasoning(data: DetectionResult): ReasoningResult
 ```
-* **Integration Plan**: Integrate this function with your local explainable AI (XAI) pipeline. Route the prediction features through a SHAP explainer on the server and return the feature importance array and text reasons:
+
+---
+
+### F. `getHabitabilityAssessment(starData)`
+Provides derived habitability indicators and orbit vetting limits for SVG diagram mapping.
+* **Expected Inputs**:
+  * `data`: `DetectionResult` (current star data)
+* **Expected Output**: `HabitabilityAssessment`
+* **Signature**:
 ```typescript
-const response = await fetch(`/api/explain/${data.event}`);
-const reasoning: ReasoningResult = await response.json();
-return reasoning;
+export function getHabitabilityAssessment(data: DetectionResult): HabitabilityAssessment
+```
+
+---
+
+### G. `getAllTargetsRanked(starsList)`
+Ranks all preloaded TESS stars by classifier confidence.
+* **Expected Inputs**:
+  * `starsList`: `StarTarget[]` (array of star data nodes)
+* **Expected Output**: `StarTarget[]` (sorted by confidence descending)
+* **Signature**:
+```typescript
+export function getAllTargetsRanked(starsList: StarTarget[]): StarTarget[]
 ```

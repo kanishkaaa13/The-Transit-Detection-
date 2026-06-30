@@ -162,65 +162,112 @@ export function renderMessageContent(text: string): React.ReactNode[] {
   });
 }
 
+export interface EnrichedDetectionResult extends DetectionResult {
+  reasoning: ReasoningResult;
+  habitability: HabitabilityAssessment;
+}
+
 // AI Chat mock query responder stub
-export function askAboutStar(data: DetectionResult | null, question: string, ticId: string): Promise<string> {
+export function askAboutStar(
+  data: EnrichedDetectionResult | null, 
+  question: string, 
+  ticId: string
+): Promise<string> {
   return new Promise((resolve) => {
     setTimeout(() => {
+      const q = question.toLowerCase();
+      
+      // Glossary context
+      const glossary: { [key: string]: string } = {
+        'transit depth': '**Transit Depth** is the fractional decrease in stellar brightness as a planet crosses in front of the star. It is proportional to the ratio of the planet\'s area to the star\'s area: $(R_p/R_*)^2$. Deep transits indicate larger companions.',
+        'orbital period': '**Orbital Period** is the time taken for a planet to complete one full orbit around its host star. It is resolved by locating repeating dips in the light curve.',
+        'transit duration': '**Transit Duration** is the length of time it takes for a planet to traverse the stellar disk. This parameter helps derive the orbit inclination and the host star density.',
+        'snr': '**Signal-to-Noise Ratio (SNR)** measures the strength of the transit signal relative to the stellar noise floor. SNRs above 7.0 are generally considered statistically significant.',
+        'habitability': '**Habitability** refers to whether a planet can support liquid surface water. The **Habitable Zone (HZ)** is the range of orbital distances where liquid water is thermodynamically stable.',
+        'equilibrium temperature': '**Equilibrium Temperature (Teq)** is the theoretical surface temperature of a planet assuming it absorbs stellar radiation and acts as a blackbody, excluding greenhouse warming.',
+        'insolation flux': '**Insolation Flux** is the amount of stellar radiation a planet receives at its orbital distance, measured relative to Earth\'s solar constant ($S_{\\oplus}$).'
+      };
+
+      // Check if it is a general glossary question
+      for (const term of Object.keys(glossary)) {
+        if (q.includes(term) && (!data || q.startsWith('what is') || q.startsWith('explain') || q.includes('meaning') || q.includes('definition'))) {
+          resolve(glossary[term]);
+          return;
+        }
+      }
+
+      // If no target data is loaded, prompt to run pipeline
       if (!data) {
-        resolve("Please run the 'Detect Signal' pipeline first so I can analyze this star's transit telemetry.");
+        resolve("Please select a target and click 'Detect Signal' first to populate the telemetry profile before asking target-specific questions.");
         return;
       }
 
-      const q = question.toLowerCase();
-      
-      if (q.includes('habitable') || q.includes('life') || q.includes('hz') || q.includes('liquid')) {
-        if (data.inHabitableZone) {
-          resolve(`Yes, **TIC ${ticId}** is a highly exciting target! The candidate planet (${data.event}) has an estimated radius of **${data.rPlanet.toFixed(2)} R⊕**, placing it in the **${data.planetType}** regime. 
+      // Target-specific queries:
+      // 1. Classification & Vetting Reasoning
+      if (q.includes('why') || q.includes('classification') || q.includes('classified') || q.includes('reason') || q.includes('decision')) {
+        const testsText = data.reasoning.rankedFeatures
+          .map((f, i) => `* **#${i+1} ${f.name}**: ${f.passed ? '✓ Passed' : '✗ Failed'} — ${f.explanation}`)
+          .join('\n');
+        
+        resolve(`**Classification Vetting Analysis for TIC ${ticId}**:
+The neural network classified this target as an **${data.classification}** (Confidence: **${(data.confidence * 100).toFixed(1)}%**).
 
-Most importantly, our classification model determines that its orbit **lies within the habitable zone**. Here are key habitability metrics:
-* **Stellar Irradiance Level**: Favorable for liquid surface water templates.
-* **Planet Class**: ${data.planetType} (likely rocky cores or gas-dwarf envelopes).
-* **SNR**: **${data.snr.toFixed(1)}** (high signal quality for follow-up studies).`);
-        } else {
-          resolve(`No, the candidate planet **${data.event}** around **TIC ${ticId}** is estimated to orbit **outside the habitable zone** of its host star. 
+**Vetting Checks Summary**:
+${testsText}
 
-Given its short orbital period of **${data.period.toFixed(2)} days** and its size (**${data.rPlanet.toFixed(2)} R⊕**), it likely experiences high surface irradiance, placing it in the hot regime (e.g. **${data.planetType}**). It is a valuable target for transit timing variations but not for biosignature detection.`);
-        }
-      } else if (q.includes('period') || q.includes('orbit') || q.includes('year') || q.includes('days')) {
-        resolve(`The resolved orbital period for **TIC ${ticId}** is **${data.period.toFixed(4)} days** (${(data.period * 24).toFixed(1)} hours). 
-
-This is calculated from the periodic dips in the SPOC light curve. The transit itself lasts for approximately **${data.duration.toFixed(2)} hours** each orbit.`);
-      } else if (q.includes('size') || q.includes('radius') || q.includes('mass') || q.includes('earth')) {
-        if (data.classification === 'Exoplanet') {
-          resolve(`The estimated physical radius of this exoplanet candidate is **${data.rPlanet.toFixed(2)} Earth radii (R⊕)**. 
-
-This size is derived from the observed transit depth of **${(data.depth * 100).toFixed(4)}%** (${(data.depth * 1e6).toFixed(0)} ppm) relative to the host star's radius. A depth of this size suggests a **${data.planetType}** classification.`);
-        } else {
-          resolve(`This target is classified as a **${data.classification}** with **${(data.confidence * 100).toFixed(1)}%** confidence. 
-
-Because it is not classified as a planetary candidate (its deep eclipse depth of **${(data.depth * 100).toFixed(2)}%** indicates stellar occultation), we do not report a planetary radius.`);
-        }
-      } else if (q.includes('snr') || q.includes('noise') || q.includes('quality')) {
-        resolve(`The transit signal for **TIC ${ticId}** exhibits a Signal-to-Noise Ratio (SNR) of **${data.snr.toFixed(1)}**. 
-
-Signals with an SNR above **7.0** are generally considered statistically significant. An SNR of **${data.snr.toFixed(1)}** indicates a highly robust detection, suggesting low instrumental noise during the transit windows.`);
-      } else if (q.includes('distance') || q.includes('light-year') || q.includes('where') || q.includes('age')) {
-        resolve(`The host star is located at a distance of **${data.distance.toFixed(1)} light-years** from Earth in the TESS Southern Sky Field. 
-
-The star's estimated age is **${data.stellarAge.toFixed(1)} billion years (Gyr)**. This is key context for understanding the evolutionary history and potential stability of any orbiting bodies.`);
-      } else {
-        // Default generic response
-        resolve(`Hello! I'm analyzing the telemetry for **TIC ${ticId}** (classification: **${data.classification}**, confidence: **${(data.confidence * 100).toFixed(1)}%**).
-
-Here is a quick scientific log:
-* **Object Name**: ${data.event}
-* **Orbital Period**: ${data.period.toFixed(4)} days
-* **Transit Depth**: ${(data.depth * 100).toFixed(4)}%
-* **Planet Type**: ${data.planetType}
-* **Habitability**: ${data.inHabitableZone ? "In Habitable Zone (YES)" : "Outside Habitable Zone (NO)"}
-
-Ask me specific questions about its **habitability**, **size/radius**, **orbital period**, or **distance**!`);
+**Vetting Conclusion**:
+${data.reasoning.summary}`);
+        return;
       }
+
+      // 2. Habitability Assessment Details
+      if (q.includes('habitable') || q.includes('habitability') || q.includes('hz') || q.includes('life') || q.includes('temperature') || q.includes('teq') || q.includes('insolation')) {
+        const hzStatus = data.inHabitableZone 
+          ? `**YES**, the candidate orbits inside the Habitable Zone.` 
+          : `**NO**, the candidate orbits outside the habitable boundaries.`;
+
+        resolve(`**Habitability Vetting Profile for TIC ${ticId}**:
+* **Habitable Zone (HZ)**: ${hzStatus}
+* **Planet Type**: ${data.planetType}
+* **Equilibrium Temp (Teq)**: **${data.habitability.equilibriumTemp} K**
+* **Insolation Flux**: **${data.habitability.insolationFlux.toFixed(2)} S⊕**
+* **Orbital Distance (a)**: **${data.habitability.orbitalDistance.toFixed(3)} AU**
+* **Stellar effective Temp (Teff)**: **${data.habitability.stellarTeff} K**
+* **Stellar Luminosity**: **${data.habitability.stellarLuminosity.toFixed(2)} L⊙**`);
+        return;
+      }
+
+      // 3. Transit Parameters (Period, Depth, Duration, SNR)
+      if (q.includes('period') || q.includes('orbit') || q.includes('depth') || q.includes('duration') || q.includes('snr') || q.includes('size') || q.includes('radius')) {
+        resolve(`**Transit Parameters Log for TIC ${ticId}**:
+* **Orbital Period**: **${data.period.toFixed(4)} days** (${(data.period * 24).toFixed(1)} hours)
+* **Transit Depth**: **${(data.depth * 100).toFixed(4)}%** (${(data.depth * 1e6).toFixed(0)} ppm)
+* **Transit Duration**: **${data.duration.toFixed(2)} hours**
+* **Planet Radius**: **${data.classification === 'Exoplanet' ? `${data.rPlanet.toFixed(2)} R⊕` : 'N/A'}**
+* **Signal-to-Noise Ratio (SNR)**: **${data.snr.toFixed(1)}**`);
+        return;
+      }
+
+      // Fallback glossary check if question contains keywords but didn't trigger specific flows
+      for (const term of Object.keys(glossary)) {
+        if (q.includes(term)) {
+          resolve(`Here is some background context on **${term}**:
+${glossary[term]}
+
+*TIC ${ticId} target specific values:*
+- Period: ${data.period.toFixed(4)} days
+- Depth: ${(data.depth * 100).toFixed(4)}%
+- SNR: ${data.snr.toFixed(1)}`);
+          return;
+        }
+      }
+
+      // Default response
+      resolve(`I am familiar with the vetting profile for **TIC ${ticId}**. You can ask me about:
+1. **Transit parameters** (e.g., "what is the period", "what is the SNR")
+2. **AI Vetting checks** (e.g., "why was it classified as ${data.classification}?")
+3. **Habitability status** (e.g., "is it habitable?", "what is the equilibrium temperature?")
+4. **General concepts** (e.g., "what is transit depth?")`);
     }, 1000);
   });
 }
@@ -724,7 +771,12 @@ export function LightCurveViewer({
     setAiLoading(true);
 
     try {
-      const response = await askAboutStar(detectionResult, userQ, activeTicId);
+      const enrichedContext: EnrichedDetectionResult | null = detectionResult ? {
+        ...detectionResult,
+        reasoning: getClassReasoning(detectionResult),
+        habitability: getHabitabilityAssessment(detectionResult)
+      } : null;
+      const response = await askAboutStar(enrichedContext, userQ, activeTicId);
       setChatMessages(prev => [...prev, { sender: 'assistant', text: response }]);
     } catch (err) {
       console.error("AI chat failed:", err);
