@@ -49,6 +49,8 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [decDomain, setDecDomain] = useState<[number, number]>([-90, -80]);
   const [scaleBySize, setScaleBySize] = useState<boolean>(false);
   const [selectedPopoverStar, setSelectedPopoverStar] = useState<SkyStar | null>(null);
+  // Track whether selection came from sidebar (should pan) vs chart click (should not pan)
+  const selectionFromSidebar = useRef(false);
 
   // Center coordinate state & zoom level (1 = widest to 6 = narrowest, default 2 for wider initial view)
   const [centerRa, setCenterRa] = useState<number>(0);
@@ -167,15 +169,16 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const selectedItemRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Align map center to highlighted search targets or manually navigated stars
+  // Align map center only when selection comes from the sidebar, not from chart dot clicks
   useEffect(() => {
-    if (selectedPopoverStar) {
+    if (selectedPopoverStar && selectionFromSidebar.current) {
       setCenterRa(selectedPopoverStar.ra);
       setCenterDec(selectedPopoverStar.dec);
-      // Smooth-scroll sidebar to the selected item
-      if (selectedItemRef.current && listContainerRef.current) {
-        selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      selectionFromSidebar.current = false;
+    }
+    // Always scroll sidebar to selected item
+    if (selectedPopoverStar && selectedItemRef.current && listContainerRef.current) {
+      selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [selectedPopoverStar]);
 
@@ -286,8 +289,11 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
         stroke={stroke} 
         strokeWidth={strokeWidth}
         opacity={opacity}
-        className="transition-all duration-300 hover:scale-150 hover:stroke-white cursor-pointer"
-        onClick={() => setSelectedPopoverStar(payload)}
+        className="transition-all duration-300 cursor-pointer"
+        onClick={() => {
+          selectionFromSidebar.current = false;
+          setSelectedPopoverStar(payload);
+        }}
       />
     );
   };
@@ -576,7 +582,7 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                         ? 'bg-indigo-950/15 border-l-2 border-indigo-500'
                         : 'hover:bg-[#0f172a]/40 active:bg-[#0f172a]/60'
                     }`}
-                    onClick={() => setSelectedPopoverStar(star)}
+                    onClick={() => { selectionFromSidebar.current = true; setSelectedPopoverStar(star); }}
                   >
                     <div className="flex justify-between items-center">
                       <strong className="text-xs text-slate-200 font-mono group-hover:text-indigo-400 transition-colors duration-150">
