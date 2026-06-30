@@ -18,7 +18,8 @@ import {
   BarChart2, 
   Compass,
   Globe,
-  Sun
+  Sun,
+  FileText
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,47 @@ export function getPlanetTypeLabel(
     return 'Super-Earth';
   }
   return 'Terrestrial (Rocky)';
+}
+
+// Paragraph template summary generator stub
+export function generateSummary(data: DetectionResult, ticId: string): string {
+  const {
+    event,
+    classification,
+    confidence,
+    period,
+    depth,
+    duration,
+    snr,
+    rPlanet,
+    distance,
+    stellarAge,
+    inHabitableZone,
+    planetType
+  } = data;
+
+  const confPercent = (confidence * 100).toFixed(1);
+  const depthPpm = (depth * 1e6).toFixed(0);
+  const depthPercent = (depth * 100).toFixed(4);
+
+  if (classification === 'Exoplanet') {
+    const hzText = inHabitableZone 
+      ? "crucially lies within the host star's habitable zone (HZ), suggesting surface temperatures compatible with liquid water"
+      : "orbits outside the host star's liquid-water habitable zone boundary";
+
+    return `Target system designation ${event} (TIC ${ticId}) displays a high-confidence (${confPercent}%) periodic transit signal characteristic of a transiting exoplanet. The Box Least Squares (BLS) periodogram solver resolves an orbital period of ${period.toFixed(4)} days, with an observed transit event duration of ${duration.toFixed(2)} hours. The transit signal exhibits a depth of ${depthPercent}% (${depthPpm} ppm), indicating a stellar radius occlusion corresponds to an estimated planet radius of ${rPlanet.toFixed(2)} Earth radii (R⊕). This physical size classifies the candidate body as a "${planetType}". The signal exhibits a strong empirical Signal-to-Noise Ratio (SNR) of ${snr.toFixed(1)}. Located at a distance of ${distance.toFixed(1)} light-years from Earth, the host stellar system has an estimated age of ${stellarAge.toFixed(1)} Gyr. The candidate planet ${hzText}, representing a high-priority target for post-detection radial velocity follow-ups and transmission spectroscopy modeling.`;
+  }
+
+  if (classification === 'Binary Star') {
+    return `Stellar target TIC ${ticId} displays a deep periodic eclipse signature classified with ${confPercent}% confidence as an eclipsing binary system. The eclipse signal features an orbital period of ${period.toFixed(4)} days and a duration of ${duration.toFixed(2)} hours, with a primary transit depth of ${depthPercent}% (${depthPpm} ppm). The massive signal occlusion and high SNR of ${snr.toFixed(1)} suggests mutual eclipse events between stellar companions. The system lies at a distance of ${distance.toFixed(1)} light-years with a stellar age of ${stellarAge.toFixed(1)} Gyr. This stellar-origin eclipsing signature is excluded from the planetary target catalog candidate list.`;
+  }
+
+  if (classification === 'Starspot') {
+    return `Target TIC ${ticId} exhibits long-term sinusoidal flux modulations with an estimated period of ${period.toFixed(4)} days and transit-like depths of ${depthPercent}% (${depthPpm} ppm), resolved at a confidence level of ${confPercent}%. This variation is classified as stellar active starspot rotation. The host star, located at a distance of ${distance.toFixed(1)} light-years and aged approximately ${stellarAge.toFixed(1)} Gyr, exhibits high chromospheric activity. This rotational signature has been flagged to prevent false-alarm planetary transit detections.`;
+  }
+
+  // Stellar Blend or other
+  return `Photometric analysis of TIC ${ticId} indicates a periodic signal with a period of ${period.toFixed(4)} days, transit duration of ${duration.toFixed(2)} hours, and depth of ${depthPercent}% (${depthPpm} ppm), classified as a background stellar blend with a confidence of ${confPercent}%. The observed SNR is ${snr.toFixed(1)}, located at a distance of ${distance.toFixed(1)} light-years. The signal is likely contaminated by background eclipsing binaries (BEB) or stellar blends within the pixel aperture and is screened out of the exoplanetary catalog.`;
 }
 
 // Mock/stub function for signal detection
@@ -224,6 +266,10 @@ export function LightCurveViewer({
   const [detecting, setDetecting] = useState<boolean>(false);
   const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
 
+  // Report states
+  const [reportText, setReportText] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+
   // Load available TIC IDs on mount
   useEffect(() => {
     fetch('/api/tic-ids')
@@ -338,6 +384,103 @@ export function LightCurveViewer({
       setDetecting(false);
     }
   };
+
+  const handleGenerateReport = () => {
+    if (!detectionResult) return;
+    const summary = generateSummary(detectionResult, activeTicId);
+    setReportText(summary);
+  };
+
+  const handleCopyClipboard = () => {
+    if (!reportText) return;
+    navigator.clipboard.writeText(reportText)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error("Failed to copy text:", err);
+      });
+  };
+
+  const handleDownloadPDF = () => {
+    if (!reportText || !detectionResult) return;
+    import('jspdf').then(({ jsPDF }) => {
+      const doc = new jsPDF();
+      
+      // Decorative Header
+      doc.setFillColor(7, 11, 25);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("🔭 TESS SIGNAL ANALYSIS REPORT", 14, 20);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`TARGET DESIGNATION: TIC ${activeTicId} | OBJECT DESIGNATION: ${detectionResult.event}`, 14, 30);
+      
+      // Title
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("Scientific Summary & Parameters", 14, 55);
+      
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, 58, 196, 58);
+      
+      // Paragraph text
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      const splitText = doc.splitTextToSize(reportText, 182);
+      doc.text(splitText, 14, 68);
+      
+      // Table Header
+      const tableStartY = 80 + (splitText.length * 5);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Parameter Metrics Table", 14, tableStartY);
+      doc.line(14, tableStartY + 3, 196, tableStartY + 3);
+      
+      // Table Content
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      let y = tableStartY + 10;
+      const drawRow = (label: string, valStr: string) => {
+        doc.setFont("helvetica", "bold");
+        doc.text(label, 14, y);
+        doc.setFont("helvetica", "normal");
+        doc.text(valStr, 90, y);
+        y += 7;
+      };
+      
+      drawRow("Orbital Period:", `${detectionResult.period.toFixed(4)} days`);
+      drawRow("Transit Depth:", `${(detectionResult.depth * 100).toFixed(4)}% (${(detectionResult.depth * 1e6).toFixed(0)} ppm)`);
+      drawRow("Transit Duration:", `${detectionResult.duration.toFixed(2)} hours`);
+      drawRow("Estimated Planet Size:", detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R_earth` : "N/A");
+      drawRow("Distance to Star:", `${detectionResult.distance.toFixed(1)} light-years`);
+      drawRow("Host Stellar Age:", `${detectionResult.stellarAge.toFixed(1)} Gyr`);
+      drawRow("Signal SNR:", `${detectionResult.snr.toFixed(1)}`);
+      drawRow("Habitable Zone:", detectionResult.inHabitableZone ? "YES" : "NO");
+      drawRow("Designation Type:", `${detectionResult.planetType}`);
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Report compiled automatically via TESS Exoplanet Transit Analysis Pipeline.", 14, 280);
+      
+      doc.save(`TIC_${activeTicId}_Scientific_Report.pdf`);
+    }).catch(err => {
+      console.error("Failed to generate PDF:", err);
+    });
+  };
+
+  // Reset report text when target star changes or detection runs
+  useEffect(() => {
+    setReportText(null);
+  }, [activeTicId, detectionResult]);
 
   // Color mappings for classifications
   const badgeColors = {
@@ -751,6 +894,53 @@ export function LightCurveViewer({
                       </span>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Summary Report Card - Rendered conditionally when detection results exist */}
+            {detectionResult && (
+              <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
+                <CardHeader className="pb-3 border-b border-slate-800/60">
+                  <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                    <FileText className="h-4.5 w-4.5 text-indigo-400" />
+                    Stellar Summary Report
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-[11px]">
+                    Generate and download scientific summary reports
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-5 space-y-4">
+                  {!reportText ? (
+                    <Button 
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-md shadow-indigo-500/10 active:scale-95"
+                      onClick={handleGenerateReport}
+                    >
+                      Generate Report
+                    </Button>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in duration-300">
+                      <div className="p-3.5 bg-[#020617]/50 rounded-lg border border-slate-900/60 text-[11px] text-slate-300 leading-relaxed font-sans max-h-48 overflow-y-auto scrollbar">
+                        {reportText}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 text-xs border-slate-700 hover:bg-slate-800 text-slate-200"
+                          onClick={handleCopyClipboard}
+                        >
+                          {copied ? 'Copied!' : 'Copy Text'}
+                        </Button>
+                        <Button 
+                          className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+                          onClick={handleDownloadPDF}
+                        >
+                          Download PDF
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
