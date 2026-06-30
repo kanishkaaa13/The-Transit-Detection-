@@ -39,3 +39,7 @@ secrets/
 *.njsproj
 *.sln
 *.sw?
+
+# Generated at build time by scripts/build-lightcurve-json.mjs
+# Do NOT commit - Vercel regenerates these from the source CSVs during build
+public/data/lightcurves/
