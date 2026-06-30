@@ -56,9 +56,9 @@ def estimate_planet_radius(star_radius_solar: float, transit_depth_fraction: flo
 if __name__ == "__main__":
     examples = [
         # (star_radius_solar, transit_depth_fraction, description)
-        (1.0,  0.01,   "Sun-like star, 1% depth  → ~Jupiter-sized"),
+        (1.0,  0.01,   "Sun-like star, 1% depth  -> ~Jupiter-sized"),
         (1.5,  0.005,  "Slightly larger star, 0.5% depth"),
-        (0.45, 0.0256, "M-dwarf (0.45 R_sun), 2.56% depth → ~sub-Jupiter"),
+        (0.45, 0.0256, "M-dwarf (0.45 R_sun), 2.56% depth -> ~sub-Jupiter"),
     ]
 
     print(f"{'Star R (R_sun)':<18} {'Depth':<12} {'Planet R (R_Jup)':<18} Description")
