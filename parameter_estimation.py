@@ -11,6 +11,7 @@ _SOLAR_TO_JUPITER_RADII = 10.9733
 _G           = 6.674e-11   # gravitational constant, m^3 kg^-1 s^-2
 _M_SUN_KG    = 1.989e30    # solar mass in kg
 _AU_M        = 1.496e11    # 1 AU in metres
+_R_SUN_M     = 6.957e8     # solar radius in metres
 
 
 def estimate_planet_radius(star_radius_solar: float, transit_depth_fraction: float) -> float:
@@ -102,6 +103,85 @@ def estimate_semimajor_axis(star_mass_solar: float, period_days: float) -> float
     return a_au
 
 
+def estimate_transit_duration(
+    star_density_gcc: float,
+    period_days: float,
+    semimajor_axis_au: float,
+) -> float:
+    """
+    Estimate the expected transit duration for a central (b=0) transit.
+
+    Derivation
+    ----------
+    1. Recover R_star from the stellar density (assuming M_star = 1 M_sun):
+
+           rho = M / (4/3 * pi * R^3)  =>  R_star = (3*M / (4*pi*rho))^(1/3)
+
+    2. Apply the standard chord-transit formula with b=0 and k->0
+       (k = R_planet/R_star; for the duration estimate k is small, so (1+k)~1):
+
+           T_dur = (P / pi) * arcsin( R_star / a )
+
+    Parameters
+    ----------
+    star_density_gcc : float
+        Mean stellar density in g/cm^3 (g/cc).
+    period_days : float
+        Orbital period in days.
+    semimajor_axis_au : float
+        Orbital semi-major axis in AU.
+
+    Returns
+    -------
+    float
+        Expected transit duration in hours.
+
+    Raises
+    ------
+    ValueError
+        If any argument is non-positive, or if R_star >= a (unphysical).
+    """
+    import math
+
+    if star_density_gcc <= 0:
+        raise ValueError(
+            f"star_density_gcc must be positive, got {star_density_gcc}"
+        )
+    if period_days <= 0:
+        raise ValueError(
+            f"period_days must be positive, got {period_days}"
+        )
+    if semimajor_axis_au <= 0:
+        raise ValueError(
+            f"semimajor_axis_au must be positive, got {semimajor_axis_au}"
+        )
+
+    # --- Step 1: derive R_star (metres) from density ---
+    # Convert density: 1 g/cc = 1000 kg/m^3
+    rho_si = star_density_gcc * 1000.0                         # kg/m^3
+    M_star = 1.0 * _M_SUN_KG                                  # assume 1 M_sun
+    R_star_m = ((3.0 * M_star) / (4.0 * math.pi * rho_si)) ** (1.0 / 3.0)
+
+    # --- Step 2: semi-major axis in metres ---
+    a_m = semimajor_axis_au * _AU_M
+
+    ratio = R_star_m / a_m
+    if ratio >= 1.0:
+        raise ValueError(
+            f"R_star/a = {ratio:.4f} >= 1; unphysical geometry "
+            f"(star larger than orbit)."
+        )
+
+    # --- Step 3: transit duration ---
+    P_seconds = period_days * 86400.0
+    T_seconds = (P_seconds / math.pi) * math.asin(ratio)
+
+    # Convert to hours
+    T_hours = T_seconds / 3600.0
+
+    return T_hours
+
+
 # ---------------------------------------------------------------------------
 # Quick verification block
 # ---------------------------------------------------------------------------
@@ -132,3 +212,17 @@ if __name__ == "__main__":
     for m_star, period, desc in sma_examples:
         a = estimate_semimajor_axis(m_star, period)
         print(f"{m_star:<18.4f} {period:<16.2f} {a:<12.4f} {desc}")
+
+    # --- estimate_transit_duration examples ---
+    print()
+    dur_examples = [
+        # (density_gcc, period_days, a_au, description)
+        (1.41,  365.25, 1.0,   "Sun/Earth geometry  -> ~13 h"),
+        (1.41,    3.52, 0.045, "Hot Jupiter (3.5-day orbit)"),
+        (56.0,   10.0,  0.072, "M-dwarf (high density), 10-day period"),
+    ]
+    print(f"{'Density (g/cc)':<18} {'Period (days)':<16} {'a (AU)':<10} {'T_dur (h)':<12} Description")
+    print("-" * 80)
+    for rho, per, a_au, desc in dur_examples:
+        t = estimate_transit_duration(rho, per, a_au)
+        print(f"{rho:<18.2f} {per:<16.2f} {a_au:<10.3f} {t:<12.4f} {desc}")
