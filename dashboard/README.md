@@ -23,6 +23,18 @@ export interface DetectionResult {
   inHabitableZone: boolean;   // Evaluates if target orbits in stellar habitable zone
   planetType: string;         // Physical category description (e.g. "Hot Jupiter")
 }
+
+export interface FeatureTest {
+  name: string;               // E.g. "R_planet size check"
+  passed: boolean;            // Success status of the test
+  explanation: string;        // One-line plain English explanation
+  importance: number;         // Relative importance / SHAP value ranking metric
+}
+
+export interface ReasoningResult {
+  rankedFeatures: FeatureTest[];
+  summary: string;            // Why this classification? summary text
+}
 ```
 
 ---
@@ -119,4 +131,22 @@ const response = await fetch('/api/llm/chat', {
 });
 const { reply } = await response.json();
 return reply;
+```
+
+---
+
+### E. `getClassReasoning(starData)`
+Provides decision interpretability details, ranked by feature importance / SHAP weights.
+* **Expected Inputs**:
+  * `data`: `DetectionResult` (current star data)
+* **Expected Output**: `ReasoningResult` (ranked list of feature tests and a descriptive text summary)
+* **Signature**:
+```typescript
+export function getClassReasoning(data: DetectionResult): ReasoningResult
+```
+* **Integration Plan**: Integrate this function with your local explainable AI (XAI) pipeline. Route the prediction features through a SHAP explainer on the server and return the feature importance array and text reasons:
+```typescript
+const response = await fetch(`/api/explain/${data.event}`);
+const reasoning: ReasoningResult = await response.json();
+return reasoning;
 ```

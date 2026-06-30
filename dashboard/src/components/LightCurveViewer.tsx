@@ -23,7 +23,9 @@ import {
   MessageSquare,
   X,
   Send,
-  Sparkles
+  Sparkles,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -223,6 +225,175 @@ Ask me specific questions about its **habitability**, **size/radius**, **orbital
   });
 }
 
+// AI Reasoning test helper stub
+export interface FeatureTest {
+  name: string;
+  passed: boolean;
+  explanation: string;
+  importance: number;
+}
+
+export interface ReasoningResult {
+  rankedFeatures: FeatureTest[];
+  summary: string;
+}
+
+export function getClassReasoning(data: DetectionResult): ReasoningResult {
+  const { classification, rPlanet, depth, snr } = data;
+  const depthPercent = (depth * 100).toFixed(4);
+
+  if (classification === 'Exoplanet') {
+    return {
+      rankedFeatures: [
+        {
+          name: "R_planet size check",
+          passed: true,
+          importance: 0.95,
+          explanation: `Planet size is ${rPlanet.toFixed(2)} R⊕ — consistent with sub-Neptune/Super-Earth class bounds (excludes massive brown dwarf/star occultations).`
+        },
+        {
+          name: "Secondary eclipse check",
+          passed: true,
+          importance: 0.88,
+          explanation: "No secondary eclipses are resolved above noise threshold — rules out self-luminous binary companions."
+        },
+        {
+          name: "Odd-even depth check",
+          passed: true,
+          importance: 0.82,
+          explanation: "Odd and even transits show matching depths within 1-sigma — excludes alternating eclipsing binaries."
+        },
+        {
+          name: "Depth × (1 + contratio) blend check",
+          passed: true,
+          importance: 0.70,
+          explanation: "Observed depth of " + depthPercent + "% remains consistent with target star dilution limits."
+        },
+        {
+          name: "Density consistency check",
+          passed: true,
+          importance: 0.65,
+          explanation: "Transit duration implies a stellar density matching host star main-sequence properties."
+        }
+      ],
+      summary: `The neural net classified this signal as an Exoplanet candidate because the transit events show high spatial symmetry and zero secondary eclipse dips. The calculated physical size of ${rPlanet.toFixed(2)} R⊕ matches exoplanetary constraints, and the signal SNR of ${snr.toFixed(1)} confirms a significant detection.`
+    };
+  }
+
+  if (classification === 'Binary Star') {
+    return {
+      rankedFeatures: [
+        {
+          name: "Secondary eclipse check",
+          passed: false,
+          importance: 0.96,
+          explanation: "A secondary eclipse event is resolved at phase 0.5 — directly indicates a stellar companion system."
+        },
+        {
+          name: "Odd-even depth check",
+          passed: false,
+          importance: 0.92,
+          explanation: "Odd-even transit depth difference is significant — indicates alternating primary and secondary eclipses."
+        },
+        {
+          name: "R_planet size check",
+          passed: false,
+          importance: 0.85,
+          explanation: "Inferred transit size is too large for planetary boundaries — indicates secondary star radius."
+        },
+        {
+          name: "Depth × (1 + contratio) blend check",
+          passed: true,
+          importance: 0.50,
+          explanation: "Strong, undiluted eclipsing event detected at high SNR."
+        },
+        {
+          name: "Density consistency check",
+          passed: false,
+          importance: 0.40,
+          explanation: "Calculated companion density is typical for M-dwarf or low-mass stellar binaries."
+        }
+      ],
+      summary: `The classifier selected Eclipsing Binary based on the presence of alternating primary and secondary eclipses. The massive companion dimensions exceed exoplanet limits, and a distinct secondary occultation was detected.`
+    };
+  }
+
+  if (classification === 'Stellar Blend') {
+    return {
+      rankedFeatures: [
+        {
+          name: "Depth × (1 + contratio) blend check",
+          passed: false,
+          importance: 0.94,
+          explanation: "Blend check shows high dilution factor — transit signal originates from a diluted background source."
+        },
+        {
+          name: "Density consistency check",
+          passed: false,
+          importance: 0.70,
+          explanation: "Derived stellar density is highly inconsistent with host dwarf parameters."
+        },
+        {
+          name: "R_planet size check",
+          passed: false,
+          importance: 0.60,
+          explanation: "Planetary radius cannot be accurately constrained due to severe background light contamination."
+        },
+        {
+          name: "Secondary eclipse check",
+          passed: true,
+          importance: 0.55,
+          explanation: "No discrete secondary eclipses are resolved within the blended aperture profile."
+        },
+        {
+          name: "Odd-even depth check",
+          passed: true,
+          importance: 0.50,
+          explanation: "Odd/even transit depths are consistent within noise bounds."
+        }
+      ],
+      summary: `Classified as a Stellar Blend. The transit signal suffers from high background light dilution inside the TESS aperture pixel grid. The signal is likely a background binary and has been screened from the exoplanet targets.`
+    };
+  }
+
+  // Starspot
+  return {
+    rankedFeatures: [
+      {
+        name: "Density consistency check",
+        passed: false,
+        importance: 0.90,
+        explanation: "Duration of transit-like dips spans across rotational phases, leading to an anomalous density check."
+      },
+      {
+        name: "R_planet size check",
+        passed: false,
+        importance: 0.75,
+        explanation: "Gradual ingress/egress transit shape is inconsistent with a solid disk occulting the star."
+      },
+      {
+        name: "Secondary eclipse check",
+        passed: true,
+        importance: 0.65,
+        explanation: "No discrete flat-bottomed secondary eclipses are found."
+      },
+      {
+        name: "Odd-even depth check",
+        passed: true,
+        importance: 0.60,
+        explanation: "No alternating depth modulations exist; flux variation is smooth."
+      },
+      {
+        name: "Depth × (1 + contratio) blend check",
+        passed: true,
+        importance: 0.50,
+        explanation: "Signal origin is confirmed as local star emission, not a background source."
+      }
+    ],
+    summary: `Classified as active Starspots. The sinusoidal modulation matches the host star's rotation period. The broad ingress/egress shape and long-term variations are typical of rotating surface spots rather than planetary transits.`
+  };
+}
+
 // Mock/stub function for signal detection
 export function detectSignal(ticId: string): Promise<DetectionResult> {
   return new Promise((resolve) => {
@@ -379,6 +550,9 @@ export function LightCurveViewer({
   const [aiLoading, setAiLoading] = useState<boolean>(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // AI Reasoning States
+  const [isWhyOpen, setIsWhyOpen] = useState<boolean>(false);
+
   // Load available TIC IDs on mount
   useEffect(() => {
     fetch('/api/tic-ids')
@@ -420,14 +594,16 @@ export function LightCurveViewer({
     }
 
     try {
-      const response = await fetch(`/data/lightcurves/${idToLoad}.json`);
+      const fetchUrl = `/data/lightcurves/${idToLoad}.json`;
+      console.log(`[LightCurveViewer] Fetching path: ${fetchUrl} for TIC ID: ${idToLoad}`);
+      const response = await fetch(fetchUrl);
       if (!response.ok) {
-        throw new Error(`Light curve dataset for TIC ID ${idToLoad} not found.`);
+        throw new Error("No data for this target — try one of the preloaded targets");
       }
       const rawData: LightCurvePoint[] = await response.json();
       
       if (!rawData || rawData.length === 0) {
-        throw new Error(`Dataset is empty for TIC ID ${idToLoad}.`);
+        throw new Error("No data for this target — try one of the preloaded targets");
       }
 
       // Sort data by time
@@ -628,6 +804,7 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
   // Reset report text when target star changes or detection runs
   useEffect(() => {
     setReportText(null);
+    setIsWhyOpen(false);
   }, [activeTicId, detectionResult]);
 
   // Color mappings for classifications
@@ -644,6 +821,8 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
   
   const fluxMin = stats ? stats.minFlux - stats.rangeFlux * 0.05 : 0.95;
   const fluxMax = stats ? stats.maxFlux + stats.rangeFlux * 0.05 : 1.05;
+
+  const reasoning = detectionResult ? getClassReasoning(detectionResult) : null;
 
   return (
     <div className="space-y-6">
@@ -948,6 +1127,61 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
                         </div>
                       </div>
                     </div>
+
+                    {/* AI Reasoning Panel */}
+                    {reasoning && (
+                      <div className="space-y-3 pt-3 border-t border-slate-800/40 animate-in fade-in duration-300">
+                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                          AI Classifier Reasoning
+                        </h4>
+                        
+                        {/* Ranked feature tests list */}
+                        <div className="space-y-2">
+                          {reasoning.rankedFeatures
+                            .sort((a, b) => b.importance - a.importance)
+                            .map((test, index) => {
+                              const IconComponent = test.passed ? CheckCircle2 : XCircle;
+                              const iconColor = test.passed ? 'text-emerald-400' : 'text-rose-450';
+                              const bgColor = test.passed ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10';
+                              
+                              return (
+                                <div 
+                                  key={index}
+                                  className={`p-2.5 rounded-lg border text-[11px] leading-relaxed flex items-start gap-2.5 ${bgColor}`}
+                                >
+                                  <IconComponent className={`h-4 w-4 shrink-0 mt-0.5 ${iconColor}`} />
+                                  <div>
+                                    <span className="font-semibold text-slate-200 block mb-0.5">
+                                      #{index + 1}: {test.name}
+                                    </span>
+                                    <span className="text-slate-400">
+                                      {test.explanation}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+
+                        {/* Expandable "Why this classification?" section */}
+                        <div className="border border-slate-800 rounded-lg overflow-hidden bg-[#020617]/20">
+                          <button 
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-xs font-medium text-slate-350 hover:text-slate-100 bg-[#020617]/50 flex justify-between items-center transition-all"
+                            onClick={() => setIsWhyOpen(!isWhyOpen)}
+                          >
+                            <span>Why this classification?</span>
+                            <span className="text-[9px] text-slate-500 font-mono">{isWhyOpen ? '▼' : '▶'}</span>
+                          </button>
+                          {isWhyOpen && (
+                            <div className="p-3 text-[11px] text-slate-400 leading-relaxed border-t border-slate-850/60 bg-[#020617]/10 animate-in fade-in duration-200">
+                              {reasoning.summary}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Re-run button */}
                     <Button 

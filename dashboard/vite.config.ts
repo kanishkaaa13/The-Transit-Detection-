@@ -155,6 +155,9 @@ export default defineConfig({
             const rawPath = path.resolve(__dirname, '../data/raw/lightcurves', `TIC_${ticId}.csv`);
             const jsonPath = path.resolve(__dirname, '../data/lightcurves', `${ticId}.json`);
 
+            console.log(`[tess-data-server] Resolving request for TIC ID: ${ticId}`);
+            console.log(`[tess-data-server] Checking paths: Clean: ${cleanPath}, Raw: ${rawPath}`);
+
             let filePath = '';
             if (fs.existsSync(cleanPath)) {
               filePath = cleanPath;
@@ -164,15 +167,18 @@ export default defineConfig({
 
             if (!filePath) {
               if (fs.existsSync(jsonPath)) {
+                console.log(`[tess-data-server] Found JSON file: ${jsonPath}`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(fs.readFileSync(jsonPath));
                 return;
               }
+              console.warn(`[tess-data-server] No CSV/JSON files found for TIC ID ${ticId}`);
               res.writeHead(404, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: `TIC ID ${ticId} not found` }));
               return;
             }
 
+            console.log(`[tess-data-server] Reading file content from: ${filePath}`);
             try {
               const fileContent = fs.readFileSync(filePath, 'utf-8');
               const lines = fileContent.split('\n');
@@ -184,11 +190,16 @@ export default defineConfig({
 
               const headers = lines[0].split(',').map(h => h.trim());
               const timeIdx = headers.indexOf('time');
-              const fluxIdx = headers.indexOf('flux');
-              const fluxErrIdx = headers.indexOf('flux_err');
+              
+              let fluxIdx = headers.indexOf('flux');
+              if (fluxIdx === -1) fluxIdx = headers.indexOf('flux_norm');
+
+              let fluxErrIdx = headers.indexOf('flux_err');
+              if (fluxErrIdx === -1) fluxErrIdx = headers.indexOf('flux_err_norm');
 
               if (timeIdx === -1 || fluxIdx === -1) {
-                throw new Error("Invalid CSV headers. Missing 'time' or 'flux'.");
+                console.error(`[tess-data-server] Invalid CSV headers: ${lines[0]}`);
+                throw new Error("Invalid CSV headers. Missing 'time' or 'flux/flux_norm'.");
               }
 
               const data: { time: number; flux: number; flux_err?: number }[] = [];
@@ -213,6 +224,7 @@ export default defineConfig({
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify(data));
             } catch (err: any) {
+              console.error(`[tess-data-server] Error reading/parsing file: ${err.message}`);
               res.writeHead(500, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: err.message }));
             }
