@@ -247,16 +247,24 @@ export default defineConfig(({ mode }) => {
         server.middlewares.use('/api/sky-snapshot', (req, res, next) => {
           if (req.method !== 'POST') return next();
 
-          let body = '';
-          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          let rawBody = '';
+          req.on('data', (chunk: Buffer) => { rawBody += chunk.toString(); });
           req.on('end', async () => {
             try {
-              const { ticId, ra, dec } = JSON.parse(body || '{}');
+              const parsed = JSON.parse(rawBody || '{}');
+              const { ticId, ra, dec } = parsed;
+              // Accept zoom 1-6 from request body; default 1 (widest) for map backgrounds
+              const zoom = (typeof parsed.zoom === 'number' && parsed.zoom >= 1 && parsed.zoom <= 6)
+                ? Math.round(parsed.zoom) : 1;
 
-              const appId = process.env.ASTRONOMY_API_ID;
-              const appSecret = process.env.ASTRONOMY_API_SECRET;
+              const appId  = (process.env.ASTRONOMY_API_ID  || '').trim();
+              const appSecret = (process.env.ASTRONOMY_API_SECRET || '').trim();
+
+              // ── Auth diagnostics (never log the actual secret value) ──────────
+              console.log(`[sky-snapshot] Credentials loaded → ID present: ${!!appId} | SECRET present: ${!!appSecret}`);
 
               if (!appId || !appSecret) {
+                console.warn('[sky-snapshot] ⚠ ASTRONOMY_API_ID / ASTRONOMY_API_SECRET are empty in .env — restart dev server after filling them in');
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ error: 'credentials_not_configured' }));
                 return;
@@ -265,11 +273,31 @@ export default defineConfig(({ mode }) => {
               const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
               const today = new Date().toISOString().split('T')[0];
 
-              // Convert decimal RA degrees → hours (AstronomyAPI expects hours)
+              // Convert decimal RA degrees → hours (AstronomyAPI requires 0-24 h)
               const raHours = (typeof ra === 'number' ? ra : 0) / 15;
-              const decNum = typeof dec === 'number' ? dec : -87;
+              const decNum  = typeof dec === 'number' ? dec : -87;
 
-              console.log(`[sky-snapshot] TIC ${ticId} — RA ${raHours.toFixed(4)}h  Dec ${decNum.toFixed(4)}°`);
+              const requestPayload = {
+                style: 'navy',
+                observer: { latitude: -87, longitude: 0, date: today },
+                view: {
+                  type: 'area',
+                  parameters: {
+                    position: {
+                      equatorial: {
+                        rightAscension: raHours,
+                        declination: decNum,
+                      }
+                    },
+                    zoom,
+                  }
+                }
+              };
+
+              // ── Full request log ─────────────────────────────────────────────
+              console.log(`[sky-snapshot] → POST astronomyapi.com | TIC=${ticId ?? 'map'} RA=${raHours.toFixed(4)}h Dec=${decNum.toFixed(4)}° Zoom=${zoom}`);
+              console.log('[sky-snapshot] Request body:', JSON.stringify(requestPayload));
+              console.log(`[sky-snapshot] Auth header: Basic <${appId.slice(0,4)}…>:<SECRET>`);
 
               const upstream = await fetch(
                 'https://api.astronomyapi.com/api/v2/studio/star-chart',
@@ -279,50 +307,43 @@ export default defineConfig(({ mode }) => {
                     'Authorization': `Basic ${credentials}`,
                     'Content-Type': 'application/json',
                   },
-                  body: JSON.stringify({
-                    style: 'navy',
-                    observer: { latitude: -87, longitude: 0, date: today },
-                    view: {
-                      type: 'area',
-                      parameters: {
-                        position: {
-                          equatorial: {
-                            rightAscension: raHours,
-                            declination: decNum,
-                          }
-                        },
-                        zoom: 3,
-                      }
-                    }
-                  }),
-                  signal: AbortSignal.timeout(20_000),
+                  body: JSON.stringify(requestPayload),
+                  signal: AbortSignal.timeout(25_000),
                 }
               );
 
+              // ── Full response log ────────────────────────────────────────────
+              const responseText = await upstream.text();
+              console.log(`[sky-snapshot] ← Response ${upstream.status} ${upstream.statusText}`);
+              console.log('[sky-snapshot] Response body (first 800 chars):', responseText.slice(0, 800));
+
               if (!upstream.ok) {
-                const errText = await upstream.text().catch(() => '');
-                console.warn(`[sky-snapshot] AstronomyAPI ${upstream.status}:`, errText.slice(0, 200));
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: `upstream_${upstream.status}` }));
+                res.end(JSON.stringify({
+                  error: `upstream_${upstream.status}`,
+                  detail: responseText.slice(0, 400)
+                }));
                 return;
               }
 
-              const data: any = await upstream.json();
+              let data: any = {};
+              try { data = JSON.parse(responseText); } catch { /* not JSON */ }
+
               const imageUrl = data?.data?.imageUrl;
 
               if (!imageUrl) {
-                console.warn('[sky-snapshot] No imageUrl in response:', JSON.stringify(data).slice(0, 300));
+                console.warn('[sky-snapshot] ⚠ No imageUrl found in response. Full response:', responseText.slice(0, 500));
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: 'no_image_url' }));
+                res.end(JSON.stringify({ error: 'no_image_url', raw: responseText.slice(0, 300) }));
                 return;
               }
 
-              console.log(`[sky-snapshot] Success for TIC ${ticId} →`, imageUrl.slice(0, 60) + '…');
+              console.log(`[sky-snapshot] ✓ Success for ${ticId ?? 'map'} → ${imageUrl.slice(0, 80)}…`);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ imageUrl }));
 
             } catch (err: any) {
-              console.error('[sky-snapshot] Error:', err.message);
+              console.error('[sky-snapshot] Proxy error:', err.message);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: err.message }));
             }

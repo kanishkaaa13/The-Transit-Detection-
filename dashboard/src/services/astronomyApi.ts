@@ -71,3 +71,50 @@ export async function resolveStarCoords(
     return null;
   }
 }
+
+// -------------------------------------------------------------------
+// Map-background chart: keyed by "ra,dec,zoom" (separate from per-star cache)
+// -------------------------------------------------------------------
+const mapBgCache = new Map<string, string>();
+
+/**
+ * Fetches an AstronomyAPI star chart image for use as a sky map background.
+ * ra/dec are decimal degrees; zoom is 1 (widest field) to 6 (most zoomed).
+ * Returns null on any failure so callers can show an error state.
+ */
+export async function fetchMapChartImage(
+  ra: number,
+  dec: number,
+  zoom: number = 1
+): Promise<string | null> {
+  const cacheKey = `map:${ra.toFixed(1)},${dec.toFixed(1)},${zoom}`;
+  if (mapBgCache.has(cacheKey)) {
+    return mapBgCache.get(cacheKey)!;
+  }
+
+  try {
+    const response = await fetch('/api/sky-snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ra, dec, zoom }),
+      signal: AbortSignal.timeout(25_000),
+    });
+
+    if (!response.ok) return null;
+    const json = await response.json();
+
+    if (json?.error) {
+      console.warn('[astronomyApi] fetchMapChartImage error:', json.error, json.detail ?? '');
+      return null;
+    }
+
+    if (json?.imageUrl) {
+      mapBgCache.set(cacheKey, json.imageUrl);
+      return json.imageUrl;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[astronomyApi] fetchMapChartImage threw:', err);
+    return null;
+  }
+}
