@@ -45,6 +45,108 @@ export default defineConfig({
             return;
           }
 
+          // Endpoint 3: Get stars for the Sky Map
+          if (req.url === '/api/sky-map-stars') {
+            try {
+              const cleanDir = path.resolve(__dirname, '../data/clean/lightcurves');
+              const rawDir = path.resolve(__dirname, '../data/raw/lightcurves');
+              const primeTargetsPath = path.resolve(__dirname, '../data/clean/prime_targets.csv');
+              const availableIds = new Set<string>();
+
+              if (fs.existsSync(cleanDir)) {
+                fs.readdirSync(cleanDir).forEach(f => {
+                  if (f.startsWith('TIC_') && f.endsWith('.csv')) {
+                    availableIds.add(f.replace('TIC_', '').replace('.csv', ''));
+                  }
+                });
+              }
+              if (fs.existsSync(rawDir)) {
+                fs.readdirSync(rawDir).forEach(f => {
+                  if (f.startsWith('TIC_') && f.endsWith('.csv')) {
+                    availableIds.add(f.replace('TIC_', '').replace('.csv', ''));
+                  }
+                });
+              }
+
+              // Load coordinates from prime_targets.csv
+              const idToCoords = new Map<string, { ra: number; dec: number }>();
+              if (fs.existsSync(primeTargetsPath)) {
+                const csvContent = fs.readFileSync(primeTargetsPath, 'utf-8');
+                const lines = csvContent.split('\n');
+                if (lines.length > 0) {
+                  const headers = lines[0].split(',').map(h => h.trim());
+                  const idIdx = headers.indexOf('ID');
+                  const raIdx = headers.indexOf('ra');
+                  const decIdx = headers.indexOf('dec');
+                  
+                  if (idIdx !== -1 && raIdx !== -1 && decIdx !== -1) {
+                    for (let i = 1; i < lines.length; i++) {
+                      const line = lines[i].trim();
+                      if (!line) continue;
+                      const parts = line.split(',');
+                      if (parts.length > Math.max(idIdx, raIdx, decIdx)) {
+                        const idStr = parts[idIdx].trim();
+                        const raVal = parseFloat(parts[raIdx]);
+                        const decVal = parseFloat(parts[decIdx]);
+                        if (idStr && !isNaN(raVal) && !isNaN(decVal)) {
+                          idToCoords.set(idStr, { ra: raVal, dec: decVal });
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              // Create response list
+              const stars = Array.from(availableIds).map(id => {
+                const coords = idToCoords.get(id) || {
+                  // Fallback to random coordinates in the southern polar region
+                  ra: 0 + Math.random() * 360,
+                  dec: -90 + Math.random() * 10
+                };
+
+                // Seeded mock logic matching detectSignal
+                const digitSum = id.split('').reduce((sum, char) => sum + (parseInt(char, 10) || 0), 0);
+                const classifications = ['Exoplanet', 'Binary Star', 'Stellar Blend', 'Starspot'];
+                let classification = classifications[digitSum % classifications.length];
+                let confidence = 0.65 + (digitSum % 31) / 100;
+
+                // Specific overrides matching detectSignal
+                if (id === '451598465') {
+                  classification = 'Exoplanet';
+                  confidence = 0.945;
+                } else if (id === '2054445521') {
+                  classification = 'Binary Star';
+                  confidence = 0.982;
+                } else if (id === '257325189') {
+                  classification = 'Stellar Blend';
+                  confidence = 0.714;
+                } else if (id === '317154919') {
+                  classification = 'Starspot';
+                  confidence = 0.841;
+                } else if (id === '257738202') {
+                  classification = 'Exoplanet';
+                  confidence = 0.885;
+                }
+
+                return {
+                  id,
+                  ra: coords.ra,
+                  dec: coords.dec,
+                  classification,
+                  confidence
+                };
+              });
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(stars));
+            } catch (err: any) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+            return;
+          }
+
           // Endpoint 2: Get light curve data for a TIC ID
           const match = req.url.match(/^\/data\/lightcurves\/(\d+)\.json/);
           if (match) {

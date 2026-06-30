@@ -192,7 +192,13 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
   });
 }
 
-export function LightCurveViewer() {
+export function LightCurveViewer({ 
+  selectedStarId, 
+  onSelectStar 
+}: { 
+  selectedStarId?: string; 
+  onSelectStar?: (id: string) => void;
+}) {
   // Selection and searching
   const [ticId, setTicId] = useState<string>('451598465');
   const [activeTicId, setActiveTicId] = useState<string>('');
@@ -239,12 +245,24 @@ export function LightCurveViewer() {
       });
   }, []);
 
+  // Listen for external star selections
+  useEffect(() => {
+    if (selectedStarId && selectedStarId !== activeTicId) {
+      setTicId(selectedStarId);
+      loadLightCurve(selectedStarId);
+    }
+  }, [selectedStarId]);
+
   const loadLightCurve = async (idToLoad: string) => {
     if (!idToLoad.trim()) return;
     setLoading(true);
     setError(null);
     setDetectionResult(null); // Reset previous detection result
     setActiveTicId(idToLoad);
+
+    if (onSelectStar) {
+      onSelectStar(idToLoad);
+    }
 
     try {
       const response = await fetch(`/data/lightcurves/${idToLoad}.json`);

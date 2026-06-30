@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
 import { LightCurveViewer } from './components/LightCurveViewer';
+import { SkyMap } from './components/SkyMap';
 import { 
   Orbit, 
   Database, 
-  Zap, 
   Cpu, 
-  FileText
+  FileText,
+  Activity,
+  Compass,
+  Zap
 } from 'lucide-react';
 
 function App() {
   const [starCount, setStarCount] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<'viewer' | 'skymap'>('viewer');
+  const [selectedStarId, setSelectedStarId] = useState<string>('451598465');
 
   // Load count of stars from api list to show on top
   useEffect(() => {
@@ -17,9 +22,17 @@ function App() {
       .then(res => res.json())
       .then(ids => {
         setStarCount(ids.length);
+        if (ids.length > 0 && !ids.includes(selectedStarId)) {
+          setSelectedStarId(ids.includes('451598465') ? '451598465' : ids[0]);
+        }
       })
       .catch(() => {});
   }, []);
+
+  const handleSelectStar = (ticId: string) => {
+    setSelectedStarId(ticId);
+    setActiveTab('viewer'); // Navigate to detail view
+  };
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 font-sans cosmic-grid flex flex-col">
@@ -97,8 +110,43 @@ function App() {
           </div>
         </div>
 
-        {/* Mounted Light Curve Viewer component */}
-        <LightCurveViewer />
+        {/* Tab switch Navigation bar */}
+        <div className="flex border-b border-slate-800/80 mb-6">
+          <button 
+            className={`px-6 py-3 text-xs sm:text-sm font-black uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === 'viewer' 
+                ? 'border-indigo-500 text-indigo-400 font-heading bg-indigo-500/5 shadow-[inset_0_-2px_0_#6366f1]' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+            onClick={() => setActiveTab('viewer')}
+          >
+            <Activity className="h-4 w-4" />
+            Light Curve Viewer
+          </button>
+          <button 
+            className={`px-6 py-3 text-xs sm:text-sm font-black uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === 'skymap' 
+                ? 'border-indigo-500 text-indigo-400 font-heading bg-indigo-500/5 shadow-[inset_0_-2px_0_#6366f1]' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+            onClick={() => setActiveTab('skymap')}
+          >
+            <Compass className="h-4 w-4" />
+            Southern Sky Map
+          </button>
+        </div>
+
+        {/* Tab views */}
+        <div className="transition-all duration-300">
+          {activeTab === 'viewer' ? (
+            <LightCurveViewer 
+              selectedStarId={selectedStarId} 
+              onSelectStar={setSelectedStarId} 
+            />
+          ) : (
+            <SkyMap onSelectStar={handleSelectStar} />
+          )}
+        </div>
 
       </main>
 
