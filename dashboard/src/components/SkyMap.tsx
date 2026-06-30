@@ -14,7 +14,8 @@ import {
   Star,
   RefreshCw,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { fetchMapChartImage } from '@/services/astronomyApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +39,7 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [stars, setStars] = useState<SkyStar[]>([]);
   const [filteredStars, setFilteredStars] = useState<SkyStar[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [starLoadError, setStarLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   
@@ -80,17 +82,19 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   // Fetch stars coordinates and classifications on mount
   useEffect(() => {
     setLoading(true);
+    setStarLoadError(null);
     fetch('/api/sky-map-stars')
       .then(res => {
-        if (!res.ok) throw new Error("Failed to load sky map");
+        if (!res.ok) throw new Error(`Sky catalog unavailable (HTTP ${res.status})`);
         return res.json();
       })
       .then((data: SkyStar[]) => {
         setStars(data);
         setFilteredStars(data);
       })
-      .catch(err => {
-        console.error("Error loading sky map:", err);
+      .catch((err: Error) => {
+        console.error('SkyMap: star catalog fetch failed:', err);
+        setStarLoadError(err.message ?? 'Failed to load the star catalog. Check your connection and reload.');
       })
       .finally(() => {
         setLoading(false);
@@ -162,22 +166,46 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     setRaDomain([minRa, maxRa]);
   }, [centerRa, centerDec, zoom]);
 
-  // Debounced AstronomyAPI fetch (400ms) to update the background image when coordinates or zoom factors change
+  // Map fetch retry counter — incrementing it re-triggers the effect
+  const [mapRetryCount, setMapRetryCount] = useState<number>(0);
+
+  // Debounced AstronomyAPI fetch (400ms) with an 8-second hard timeout
+  // so a slow or hung API call never keeps the panel in a loading state indefinitely.
   useEffect(() => {
     setMapStatus('loading');
+    let abortCtrl: AbortController | null = null;
+
     const timer = setTimeout(() => {
-      fetchMapChartImage(centerRa, centerDec, zoom).then(url => {
-        if (url) {
-          setMapBgUrl(url);
-          setMapStatus('online');
-        } else {
+      abortCtrl = new AbortController();
+
+      // 8-second hard ceiling — resolves as null → error state
+      const timeoutId = setTimeout(() => {
+        abortCtrl?.abort();
+        setMapStatus('error');
+      }, 8000);
+
+      fetchMapChartImage(centerRa, centerDec, zoom)
+        .then(url => {
+          clearTimeout(timeoutId);
+          if (url) {
+            setMapBgUrl(url);
+            setMapStatus('online');
+          } else {
+            setMapStatus('error');
+          }
+        })
+        .catch(() => {
+          clearTimeout(timeoutId);
           setMapStatus('error');
-        }
-      });
+        });
     }, 400);
 
-    return () => clearTimeout(timer);
-  }, [centerRa, centerDec, zoom]);
+    return () => {
+      clearTimeout(timer);
+      abortCtrl?.abort();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerRa, centerDec, zoom, mapRetryCount]);
 
   // Align map center to highlighted search targets or manually navigated stars
   useEffect(() => {
@@ -333,10 +361,20 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                 </span>
               )}
               {mapStatus === 'error' && (
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-1 rounded-full">
-                  <AlertTriangle className="h-3 w-3" />
-                  Chart Unavailable — Check .env credentials
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-1 rounded-full">
+                    <AlertTriangle className="h-3 w-3" />
+                    Chart Unavailable — Check .env credentials
+                  </span>
+                  <button
+                    onClick={() => setMapRetryCount(c => c + 1)}
+                    title="Retry loading the star chart"
+                    className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-full transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Retry
+                  </button>
+                </div>
               )}
               {mapStatus === 'idle' && (
                 <span className="flex items-center gap-1.5 text-[10px] text-slate-600 px-2 py-1 rounded-full border border-slate-800">
@@ -410,6 +448,16 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-between p-6 relative">
+            {/* Star catalog load error banner */}
+            {starLoadError && (
+              <div className="mb-4 flex items-start gap-3 p-3 bg-rose-950/30 border border-rose-500/25 rounded-lg text-xs">
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-rose-300 font-semibold">Catalog load failed</p>
+                  <p className="text-rose-400/70 mt-0.5">{starLoadError}</p>
+                </div>
+              </div>
+            )}
             {loading ? (
               <div className="text-center py-24 space-y-4 my-auto">
                 <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mx-auto" />
@@ -518,8 +566,25 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
           <CardContent className="p-0 overflow-y-auto flex-1 divide-y divide-slate-900/60 scrollbar">
             {loading ? (
               <div className="p-6 text-center text-xs text-slate-600">Loading...</div>
+            ) : starLoadError ? (
+              <div className="p-5 space-y-2 text-center">
+                <AlertTriangle className="h-6 w-6 text-rose-400/60 mx-auto" />
+                <p className="text-xs text-rose-400/80 leading-relaxed">{starLoadError}</p>
+              </div>
             ) : filteredStars.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-600">Empty</div>
+              <div className="p-5 space-y-3 text-center">
+                <Filter className="h-6 w-6 text-slate-600 mx-auto" />
+                <p className="text-xs text-slate-500 leading-relaxed">No targets match this filter</p>
+                {(searchQuery || typeFilter !== 'all') && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setTypeFilter('all'); }}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 mx-auto transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Clear filters
+                  </button>
+                )}
+              </div>
             ) : (
               filteredStars.map(star => (
                 <div 
