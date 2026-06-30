@@ -630,16 +630,19 @@ export function LightCurveViewer({
   // Detection states
   const [detecting, setDetecting] = useState<boolean>(false);
   const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
+  const [detectionError, setDetectionError] = useState<string | null>(null);
 
   // Report states
   const [reportText, setReportText] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<boolean>(false);
 
   // AI Chat Panel States
   const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
-  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'assistant', text: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'assistant', text: string, isError?: boolean, retryPayload?: string }[]>([]);
   const [chatInput, setChatInput] = useState<string>('');
   const [aiLoading, setAiLoading] = useState<boolean>(false);
+  const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // AI Reasoning States
@@ -698,25 +701,36 @@ export function LightCurveViewer({
         throw new Error("No data for this target — try one of the preloaded targets");
       }
 
+      // Filter out NaN / Infinity values that would break the chart
+      const validData = rawData.filter(
+        p => Number.isFinite(p.flux) && Number.isFinite(p.time)
+      );
+      if (validData.length === 0) {
+        throw new Error("Light curve data appears malformed (all flux values are NaN or invalid) — cannot render chart");
+      }
+      if (validData.length < rawData.length) {
+        console.warn(`[LightCurveViewer] Filtered ${rawData.length - validData.length} NaN/Infinity points from TIC ${idToLoad}`);
+      }
+
       // Sort data by time
-      rawData.sort((a, b) => a.time - b.time);
-      setData(rawData);
+      validData.sort((a, b) => a.time - b.time);
+      setData(validData);
 
       // Perform Downsampling (Max 2500 points for smooth Recharts rendering)
       const maxPoints = 2500;
-      if (rawData.length > maxPoints) {
-        const step = Math.ceil(rawData.length / maxPoints);
+      if (validData.length > maxPoints) {
+        const step = Math.ceil(validData.length / maxPoints);
         const sampled: LightCurvePoint[] = [];
-        for (let i = 0; i < rawData.length; i += step) {
-          sampled.push(rawData[i]);
+        for (let i = 0; i < validData.length; i += step) {
+          sampled.push(validData[i]);
         }
         setDownsampledData(sampled);
       } else {
-        setDownsampledData(rawData);
+        setDownsampledData(validData);
       }
 
       // Calculate Statistics
-      const fluxes = rawData.map(p => p.flux);
+      const fluxes = validData.map(p => p.flux);
       const count = fluxes.length;
       const minFlux = Math.min(...fluxes);
       const maxFlux = Math.max(...fluxes);
@@ -752,24 +766,38 @@ export function LightCurveViewer({
   const handleDetectSignal = async () => {
     if (!activeTicId) return;
     setDetecting(true);
+    setDetectionError(null);
     try {
       const result = await detectSignal(activeTicId);
       setDetectionResult(result);
-    } catch (err) {
-      console.error("Signal detection failed:", err);
+    } catch (err: any) {
+      console.error('Signal detection failed:', err);
+      setDetectionError(err?.message ?? 'Classification pipeline failed. Please try again.');
     } finally {
       setDetecting(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent, retryText?: string) => {
     e.preventDefault();
-    if (!chatInput.trim() || aiLoading) return;
+    const userQ = retryText ?? chatInput.trim();
+    if (!userQ || aiLoading) return;
 
-    const userQ = chatInput.trim();
-    setChatMessages(prev => [...prev, { sender: 'user', text: userQ }]);
-    setChatInput('');
+    if (!retryText) {
+      setChatMessages(prev => [...prev, { sender: 'user', text: userQ }]);
+      setChatInput('');
+    }
+    setLastUserMessage(userQ);
     setAiLoading(true);
+
+    // 15-second safety timeout — prevents a stuck loading spinner
+    const safetyTimer = setTimeout(() => {
+      setAiLoading(false);
+      setChatMessages(prev => [
+        ...prev,
+        { sender: 'assistant', text: "⚠ Response timed out — the copilot took too long to reply.", isError: true, retryPayload: userQ }
+      ]);
+    }, 15000);
 
     try {
       const enrichedContext: EnrichedDetectionResult | null = detectionResult ? {
@@ -778,10 +806,22 @@ export function LightCurveViewer({
         habitability: getHabitabilityAssessment(detectionResult)
       } : null;
       const response = await askAboutStar(enrichedContext, userQ, activeTicId);
-      setChatMessages(prev => [...prev, { sender: 'assistant', text: response }]);
+      clearTimeout(safetyTimer);
+      if (!response || response.trim() === '') {
+        setChatMessages(prev => [
+          ...prev,
+          { sender: 'assistant', text: "⚠ Couldn't get a response — please try again.", isError: true, retryPayload: userQ }
+        ]);
+      } else {
+        setChatMessages(prev => [...prev, { sender: 'assistant', text: response }]);
+      }
     } catch (err) {
-      console.error("AI chat failed:", err);
-      setChatMessages(prev => [...prev, { sender: 'assistant', text: "Error: Failed to process query. Please retry." }]);
+      clearTimeout(safetyTimer);
+      console.error('AI chat failed:', err);
+      setChatMessages(prev => [
+        ...prev,
+        { sender: 'assistant', text: "⚠ Couldn't get a response — please try again.", isError: true, retryPayload: userQ }
+      ]);
     } finally {
       setAiLoading(false);
     }
@@ -859,6 +899,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
 
   const handleDownloadPDF = () => {
     if (!reportText || !detectionResult) return;
+    setPdfError(false);
     import('jspdf').then(({ jsPDF }) => {
       const doc = new jsPDF();
       
@@ -1002,13 +1043,16 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       
       doc.save(`TIC_${activeTicId}_Scientific_Report.pdf`);
     }).catch(err => {
-      console.error("Failed to generate PDF:", err);
+      console.error('PDF generation failed:', err);
+      setPdfError(true);
+      setTimeout(() => setPdfError(false), 4000);
     });
   };
 
-  // Reset report text when target star changes or detection runs
+  // Reset report text and errors when target star changes or detection runs
   useEffect(() => {
     setReportText(null);
+    setDetectionError(null);
     setIsWhyOpen(false);
   }, [activeTicId, detectionResult]);
 
@@ -1246,6 +1290,24 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                       <p className="text-xs text-slate-400 animate-pulse">Running BLS Periodogram search...</p>
                     </div>
                   </div>
+                ) : detectionError ? (
+                  // Detection failure state with retry button
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3.5 bg-rose-950/30 border border-rose-500/25 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-rose-300">Classification Failed</p>
+                        <p className="text-[11px] text-rose-400/70 mt-0.5 leading-relaxed">{detectionError}</p>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all active:scale-95"
+                      onClick={handleDetectSignal}
+                    >
+                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                      Retry Detection
+                    </Button>
+                  </div>
                 ) : detectionResult ? (
                   // Completed Classification Result Panel
                   <div className="space-y-6 animate-in fade-in duration-300">
@@ -1260,6 +1322,16 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                           {detectionResult.classification}
                         </Badge>
                       </div>
+
+                      {/* Low-confidence warning */}
+                      {detectionResult.confidence < 0.50 && (
+                        <div className="flex items-start gap-2.5 p-2.5 bg-amber-500/8 border border-amber-500/25 rounded-lg text-[11px]">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                          <span className="text-amber-300/90 leading-relaxed">
+                            <strong>Low confidence ({(detectionResult.confidence * 100).toFixed(1)}%)</strong> — result may be ambiguous. Consider re-running or selecting a different target.
+                          </span>
+                        </div>
+                      )}
 
                       {/* Event TOI ID */}
                       <div className="flex items-center justify-between pb-3 border-b border-slate-800/40">
@@ -1760,6 +1832,17 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
               </Card>
             )}
 
+            {/* PDF Error Toast */}
+            {pdfError && (
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 px-5 py-3 bg-[#1a0a0a] border border-rose-500/40 rounded-xl shadow-2xl text-xs animate-in slide-in-from-bottom-4 duration-300">
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                <span className="text-rose-300 font-medium">⚠ PDF generation failed — please try again</span>
+                <button onClick={() => setPdfError(false)} className="ml-2 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Quick Science Guide card */}
             <Card className="bg-[#0f172a]/20 border-slate-850">
               <CardContent className="p-4 text-xs text-slate-400 space-y-2">
@@ -1842,10 +1925,22 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                 className={`p-3 rounded-xl text-xs leading-relaxed ${
                   msg.sender === 'user' 
                     ? 'bg-indigo-600 text-white rounded-tr-none' 
+                    : msg.isError
+                    ? 'bg-rose-950/40 border border-rose-500/25 text-rose-300 rounded-tl-none'
                     : 'bg-[#0f172a] border border-slate-850 text-slate-300 rounded-tl-none'
                 }`}
               >
                 {msg.sender === 'user' ? msg.text : renderMessageContent(msg.text)}
+                {msg.isError && msg.retryPayload && (
+                  <button
+                    onClick={(e) => handleSendMessage(e as any, msg.retryPayload)}
+                    disabled={aiLoading}
+                    className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-rose-300 hover:text-white border border-rose-500/30 hover:border-indigo-400/40 hover:bg-indigo-500/10 px-2 py-1 rounded-md transition-all cursor-pointer disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Try again
+                  </button>
+                )}
               </div>
               <span className="text-[9px] text-slate-600 mt-1 uppercase tracking-wider font-semibold font-mono">
                 {msg.sender === 'user' ? 'Scientist' : 'Copilot'}

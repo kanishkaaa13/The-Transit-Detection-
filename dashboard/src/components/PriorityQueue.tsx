@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Scale,
   X,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,7 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
   const [rankedStars, setRankedStars] = useState<StarTarget[]>([]);
   const [filteredStars, setFilteredStars] = useState<StarTarget[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [minConfidence, setMinConfidence] = useState<number>(60); // min confidence in %
@@ -54,21 +56,31 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
     'Starspot': 'bg-sky-500/10 text-sky-400 border-sky-500/20'
   };
 
-  useEffect(() => {
+  const fetchTargets = () => {
     setLoading(true);
+    setLoadError(null);
     fetch('/api/sky-map-stars')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load target catalog (HTTP ${res.status})`);
+        return res.json();
+      })
       .then((data: StarTarget[]) => {
         const ranked = getAllTargetsRanked(data);
         setRankedStars(ranked);
         setFilteredStars(ranked);
       })
-      .catch(err => {
-        console.error("Error loading targets for queue:", err);
+      .catch((err: Error) => {
+        console.error('PriorityQueue: fetch failed:', err);
+        setLoadError(err.message ?? 'Failed to load the target catalog. Check your connection and try again.');
       })
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchTargets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter lists based on search, classification type, and minimum confidence threshold
@@ -321,11 +333,50 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
               <ArrowUpDown className="h-8 w-8 text-accent animate-spin mx-auto mb-4" />
               <p className="text-xs text-slate-500">Ranking candidates catalog...</p>
             </div>
+          ) : loadError ? (
+            // Fetch error state with retry
+            <div className="py-20 px-8 space-y-4 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
+                <AlertTriangle className="h-6 w-6 text-rose-400" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-rose-300">Catalog Load Failed</h4>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">{loadError}</p>
+              </div>
+              <button
+                onClick={fetchTargets}
+                className="mx-auto flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all active:scale-95 cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Retry
+              </button>
+            </div>
           ) : filteredStars.length === 0 ? (
-            <div className="text-center py-20 space-y-2">
-              <AlertTriangle className="h-10 w-10 text-slate-600 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-450">No targets fit screening criteria</h4>
-              <p className="text-xs text-slate-500">Try lowering the confidence filter or clearing search fields.</p>
+            // Empty state — no targets match the current filters
+            <div className="py-16 px-8 space-y-4 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-slate-800/60 border border-slate-700/40 flex items-center justify-center">
+                <Filter className="h-6 w-6 text-slate-500" />
+              </div>
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-bold text-slate-400">No targets match this confidence threshold</h4>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  {searchQuery
+                    ? `No results for TIC "${searchQuery}"`
+                    : typeFilter !== 'all'
+                    ? `No ${typeFilter} targets at ≥${minConfidence}% confidence`
+                    : `No targets at ≥${minConfidence}% confidence`
+                  }
+                </p>
+              </div>
+              {(searchQuery || typeFilter !== 'all' || minConfidence > 0) && (
+                <button
+                  onClick={() => { setSearchQuery(''); setTypeFilter('all'); setMinConfidence(60); }}
+                  className="mx-auto flex items-center gap-2 px-4 py-2 bg-transparent border border-slate-700 hover:border-indigo-500 text-slate-300 hover:text-indigo-300 text-xs font-medium rounded-lg transition-all cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
