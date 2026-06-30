@@ -760,8 +760,41 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
   };
 
   const handleCopyClipboard = () => {
-    if (!reportText) return;
-    navigator.clipboard.writeText(reportText)
+    if (!reportText || !detectionResult) return;
+    const rsn = getClassReasoning(detectionResult);
+    const hab = getHabitabilityAssessment(detectionResult);
+    
+    const formattedMarkdown = `
+# TESS VETTING & ANALYSIS REPORT - TIC ${activeTicId}
+
+## 1. Target Overview
+${reportText}
+
+## 2. Transit Parameters
+- Orbital Period: ${detectionResult.period.toFixed(4)} days
+- Transit Depth: ${(detectionResult.depth * 100).toFixed(4)}% (${(detectionResult.depth * 1e6).toFixed(0)} ppm)
+- Transit Duration: ${detectionResult.duration.toFixed(2)} hours
+- Planet Radius: ${detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+- Signal SNR: ${detectionResult.snr.toFixed(1)}
+
+## 3. AI Classifier Vetting
+- Classification: ${detectionResult.classification} (Confidence: ${(detectionResult.confidence * 100).toFixed(1)}%)
+${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} ${f.name}: ${f.explanation}`).join('\n')}
+- Summary Reasoning: ${rsn.summary}
+
+## 4. Habitability Profile
+- In Habitable Zone: ${detectionResult.inHabitableZone ? 'YES' : 'NO'}
+- Planet Designation Type: ${detectionResult.planetType}
+- Equilibrium Temp (Teq): ${hab.equilibriumTemp} K
+- Insolation Flux: ${hab.insolationFlux.toFixed(2)} S⊕
+- Semi-Major Axis: ${hab.orbitalDistance.toFixed(3)} AU
+- Host Stellar Temp: ${hab.stellarTeff} K
+- Host Stellar Lum: ${hab.stellarLuminosity.toFixed(2)} L⊙
+- Host Stellar Age: ${detectionResult.stellarAge.toFixed(1)} Gyr
+- Distance to System: ${detectionResult.distance.toFixed(1)} light-years
+`;
+
+    navigator.clipboard.writeText(formattedMarkdown.trim())
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -776,7 +809,7 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
     import('jspdf').then(({ jsPDF }) => {
       const doc = new jsPDF();
       
-      // Decorative Header
+      // Page 1: Header and Summary
       doc.setFillColor(7, 11, 25);
       doc.rect(0, 0, 210, 40, 'F');
       
@@ -789,55 +822,130 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
       doc.setFontSize(9);
       doc.text(`TARGET DESIGNATION: TIC ${activeTicId} | OBJECT DESIGNATION: ${detectionResult.event}`, 14, 30);
       
-      // Title
+      // Overview
       doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("Scientific Summary & Parameters", 14, 55);
-      
+      doc.setFontSize(13);
+      doc.text("1. Target Overview & Summary", 14, 52);
       doc.setDrawColor(226, 232, 240);
-      doc.line(14, 58, 196, 58);
+      doc.line(14, 55, 196, 55);
       
-      // Paragraph text
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(51, 65, 85);
       const splitText = doc.splitTextToSize(reportText, 182);
-      doc.text(splitText, 14, 68);
+      doc.text(splitText, 14, 62);
       
-      // Table Header
-      const tableStartY = 80 + (splitText.length * 5);
+      // Transit Parameters Table
+      const sec2Y = 65 + (splitText.length * 4.5);
+      doc.setTextColor(15, 23, 42);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("Parameter Metrics Table", 14, tableStartY);
-      doc.line(14, tableStartY + 3, 196, tableStartY + 3);
+      doc.setFontSize(13);
+      doc.text("2. Vetting & Transit Parameters", 14, sec2Y);
+      doc.line(14, sec2Y + 3, 196, sec2Y + 3);
       
-      // Table Content
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      let y = tableStartY + 10;
+      doc.setFontSize(9.5);
+      let y = sec2Y + 10;
       const drawRow = (label: string, valStr: string) => {
         doc.setFont("helvetica", "bold");
         doc.text(label, 14, y);
         doc.setFont("helvetica", "normal");
         doc.text(valStr, 90, y);
-        y += 7;
+        y += 6.5;
       };
       
       drawRow("Orbital Period:", `${detectionResult.period.toFixed(4)} days`);
       drawRow("Transit Depth:", `${(detectionResult.depth * 100).toFixed(4)}% (${(detectionResult.depth * 1e6).toFixed(0)} ppm)`);
       drawRow("Transit Duration:", `${detectionResult.duration.toFixed(2)} hours`);
       drawRow("Estimated Planet Size:", detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R_earth` : "N/A");
-      drawRow("Distance to Star:", `${detectionResult.distance.toFixed(1)} light-years`);
-      drawRow("Host Stellar Age:", `${detectionResult.stellarAge.toFixed(1)} Gyr`);
       drawRow("Signal SNR:", `${detectionResult.snr.toFixed(1)}`);
-      drawRow("Habitable Zone:", detectionResult.inHabitableZone ? "YES" : "NO");
-      drawRow("Designation Type:", `${detectionResult.planetType}`);
       
-      // Footer
+      // Habitability Table
+      const sec3Y = y + 4;
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("3. Habitability Profile & Assessment", 14, sec3Y);
+      doc.line(14, sec3Y + 3, 196, sec3Y + 3);
+      
+      const assessment = getHabitabilityAssessment(detectionResult);
+      y = sec3Y + 10;
+      drawRow("Habitable Zone Status:", detectionResult.inHabitableZone ? "IN HABITABLE ZONE (YES)" : "OUTSIDE HABITABLE ZONE (NO)");
+      drawRow("Designation Type:", `${detectionResult.planetType}`);
+      drawRow("Equilibrium Temp (Teq):", `${assessment.equilibriumTemp} K`);
+      drawRow("Insolation Flux:", `${assessment.insolationFlux.toFixed(2)} S_earth`);
+      drawRow("Stellar Temperature:", `${assessment.stellarTeff} K`);
+      drawRow("Stellar Luminosity:", `${assessment.stellarLuminosity.toFixed(2)} L_sun`);
+
+      // Page 1 Footer
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
-      doc.text("Report compiled automatically via TESS Exoplanet Transit Analysis Pipeline.", 14, 280);
+      doc.text("TESS Transit Vetting Report — Page 1 of 2", 14, 285);
+      
+      // Add Page 2
+      doc.addPage();
+      
+      // Decorative Header Page 2
+      doc.setFillColor(7, 11, 25);
+      doc.rect(0, 0, 210, 18, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`TESS SIGNAL ANALYSIS REPORT — TIC ${activeTicId}`, 14, 12);
+      
+      // AI Classifier Reasoning
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text("4. AI Classifier Vetting & Reasoning", 14, 30);
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, 33, 196, 33);
+      
+      const reasoning = getClassReasoning(detectionResult);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`ML Classification: ${detectionResult.classification} | Confidence: ${(detectionResult.confidence * 100).toFixed(1)}%`, 14, 40);
+      
+      // Feature check list
+      let checkY = 48;
+      reasoning.rankedFeatures
+        .sort((a, b) => b.importance - a.importance)
+        .forEach((test, index) => {
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(test.passed ? 16 : 220, test.passed ? 120 : 38, test.passed ? 50 : 38);
+          doc.text(test.passed ? "[PASS]" : "[FAIL]", 14, checkY);
+          
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(30, 41, 59);
+          doc.text(`#${index + 1}: ${test.name}`, 32, checkY);
+          
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(71, 85, 105);
+          const splitExplanation = doc.splitTextToSize(test.explanation, 155);
+          doc.text(splitExplanation, 32, checkY + 4.5);
+          
+          checkY += 7.5 + (splitExplanation.length * 4);
+        });
+
+      // Vetting Summary Statement
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("Vetting Summary Statement", 14, checkY + 4);
+      doc.line(14, checkY + 7, 196, checkY + 7);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(51, 65, 85);
+      const splitReasoningSummary = doc.splitTextToSize(reasoning.summary, 182);
+      doc.text(splitReasoningSummary, 14, checkY + 13);
+      
+      // Page 2 Footer
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text("Report compiled automatically via TESS Exoplanet Transit Analysis Pipeline. — Page 2 of 2", 14, 285);
       
       doc.save(`TIC_${activeTicId}_Scientific_Report.pdf`);
     }).catch(err => {
@@ -867,6 +975,7 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
   const fluxMax = stats ? stats.maxFlux + stats.rangeFlux * 0.05 : 1.05;
 
   const reasoning = detectionResult ? getClassReasoning(detectionResult) : null;
+  const assessment = detectionResult ? getHabitabilityAssessment(detectionResult) : null;
 
   return (
     <div className="space-y-6">
@@ -1462,20 +1571,128 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
                     </Button>
                   ) : (
                     <div className="space-y-4 animate-in fade-in duration-300">
-                      <div className="p-3.5 bg-[#020617]/50 rounded-lg border border-slate-900/60 text-[11px] text-slate-300 leading-relaxed font-sans max-h-48 overflow-y-auto scrollbar">
-                        {reportText}
+                      <div className="p-4 bg-[#020617]/60 rounded-lg border border-slate-850 space-y-4 max-h-[450px] overflow-y-auto scrollbar text-left font-sans">
+                        
+                        {/* Section 1: Overview */}
+                        <div className="space-y-1.5">
+                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                            <Info className="h-3.5 w-3.5 text-indigo-400" />
+                            1. Target Overview
+                          </h5>
+                          <p className="text-[11px] text-slate-350 leading-relaxed font-light">
+                            {reportText}
+                          </p>
+                        </div>
+
+                        {/* Section 2: Parameters */}
+                        <div className="space-y-2">
+                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                            <BarChart2 className="h-3.5 w-3.5 text-indigo-400" />
+                            2. Vetting & Transit Parameters
+                          </h5>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Orbital Period:</span>
+                              <span className="text-slate-300 font-mono font-bold">{detectionResult.period.toFixed(4)} d</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Transit Depth:</span>
+                              <span className="text-slate-300 font-mono font-bold">{(detectionResult.depth * 100).toFixed(4)}%</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Transit Duration:</span>
+                              <span className="text-slate-300 font-mono font-bold">{detectionResult.duration.toFixed(2)} h</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Planet Size:</span>
+                              <span className="text-slate-300 font-mono font-bold">
+                                {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Signal SNR:</span>
+                              <span className="text-slate-300 font-mono font-bold">{detectionResult.snr.toFixed(1)}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-slate-905 py-1">
+                              <span className="text-slate-500">Stellar Age:</span>
+                              <span className="text-slate-300 font-mono font-bold">{detectionResult.stellarAge.toFixed(1)} Gyr</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Section 3: AI Reasoning */}
+                        {reasoning && (
+                          <div className="space-y-2">
+                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                              3. AI Classifier Vetting
+                            </h5>
+                            <div className="space-y-1.5 text-[10px]">
+                              {reasoning.rankedFeatures.map((test, index) => (
+                                <div key={index} className="flex items-start gap-1.5">
+                                  <span className={test.passed ? 'text-emerald-450 font-bold' : 'text-rose-450 font-bold'}>
+                                    {test.passed ? '✓' : '✗'}
+                                  </span>
+                                  <div className="leading-normal">
+                                    <span className="font-semibold text-slate-300">{test.name}: </span>
+                                    <span className="text-slate-400">{test.explanation}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Section 4: Habitability Assessment */}
+                        {assessment && (
+                          <div className="space-y-2">
+                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                              <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                              4. Habitability Assessment
+                            </h5>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">HZ Status:</span>
+                                <span className={detectionResult.inHabitableZone ? 'text-emerald-450 font-bold' : 'text-slate-400'}>
+                                  {detectionResult.inHabitableZone ? 'YES' : 'NO'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">Designation:</span>
+                                <span className="text-slate-350">{detectionResult.planetType}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">Equil. Temp (Teq):</span>
+                                <span className="text-slate-300 font-mono">{assessment.equilibriumTemp} K</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">Insolation Flux:</span>
+                                <span className="text-slate-300 font-mono">{assessment.insolationFlux.toFixed(2)} S⊕</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">Stellar Teff:</span>
+                                <span className="text-slate-300 font-mono">{assessment.stellarTeff} K</span>
+                              </div>
+                              <div className="flex justify-between border-b border-slate-905 py-1">
+                                <span className="text-slate-500">Stellar L_sun:</span>
+                                <span className="text-slate-300 font-mono">{assessment.stellarLuminosity.toFixed(2)} L⊙</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                       </div>
                       
                       <div className="flex gap-2">
                         <Button 
                           variant="outline" 
-                          className="flex-1 text-xs border-slate-700 hover:bg-slate-800 text-slate-200"
+                          className="flex-1 text-xs border-slate-700 hover:bg-slate-800 text-slate-200 cursor-pointer"
                           onClick={handleCopyClipboard}
                         >
-                          {copied ? 'Copied!' : 'Copy Text'}
+                          {copied ? 'Copied!' : 'Copy Report'}
                         </Button>
                         <Button 
-                          className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+                          className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium cursor-pointer"
                           onClick={handleDownloadPDF}
                         >
                           Download PDF
