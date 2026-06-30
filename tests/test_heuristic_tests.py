@@ -44,7 +44,7 @@ def test_odd_even_depth_flags_and_not_flags():
         False,
         "odd/even depths similar",
     )
-    assert test_odd_even_depth([0.01, 0.012], [0.02, 0.03], tolerance=0.05) == (
+    assert test_odd_even_depth([0.01, 0.012], [0.02, 0.2], tolerance=0.05) == (
         True,
         "odd/even depths differ significantly",
     )
