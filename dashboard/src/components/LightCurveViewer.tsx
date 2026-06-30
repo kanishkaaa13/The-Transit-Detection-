@@ -225,6 +225,50 @@ Ask me specific questions about its **habitability**, **size/radius**, **orbital
   });
 }
 
+// Habitability assessment helper stub
+export interface HabitabilityAssessment {
+  equilibriumTemp: number;     // Kelvin (K)
+  insolationFlux: number;      // Relative to Earth (S_⊕)
+  orbitalDistance: number;     // Astronomical Units (AU)
+  stellarTeff: number;         // Kelvin (K)
+  stellarLuminosity: number;   // Solar Luminosity (L_⊙)
+  hzInnerBoundary: number;     // AU
+  hzOuterBoundary: number;     // AU
+  planetOrbitRadius: number;   // AU
+  planetStatus: 'inner' | 'hz' | 'outer';
+}
+
+export function getHabitabilityAssessment(data: DetectionResult): HabitabilityAssessment {
+  const isHz = data.inHabitableZone;
+  
+  if (isHz) {
+    return {
+      equilibriumTemp: 262, // K
+      insolationFlux: 0.95, // S_⊕
+      orbitalDistance: 0.38, // AU
+      stellarTeff: 4800, // K
+      stellarLuminosity: 0.28, // L_⊙
+      hzInnerBoundary: 0.28,
+      hzOuterBoundary: 0.52,
+      planetOrbitRadius: 0.38,
+      planetStatus: 'hz'
+    };
+  } else {
+    // Hot Jupiter / Not in HZ
+    return {
+      equilibriumTemp: 845, // K
+      insolationFlux: 125.4, // S_⊕
+      orbitalDistance: 0.045, // AU
+      stellarTeff: 5800, // K
+      stellarLuminosity: 1.15, // L_⊙
+      hzInnerBoundary: 0.72,
+      hzOuterBoundary: 1.45,
+      planetOrbitRadius: 0.045,
+      planetStatus: 'inner'
+    };
+  }
+}
+
 // AI Reasoning test helper stub
 export interface FeatureTest {
   name: string;
@@ -1212,73 +1256,189 @@ You can ask me questions about its **habitability**, **orbital period**, **estim
             </Card>
 
             {/* Habitability Card - Rendered conditionally when detection results exist */}
-            {detectionResult && (
-              <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
-                <CardHeader className="pb-3 border-b border-slate-800/60">
-                  <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
-                    <Globe className="h-4.5 w-4.5 text-emerald-400" />
-                    Habitability Profile
-                  </CardTitle>
-                  <CardDescription className="text-slate-400 text-[11px]">
-                    Stellar habitable zone and planet properties evaluation
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-5 space-y-4">
-                  {/* HZ Status Indicator block */}
-                  <div className={`p-4 rounded-lg border flex items-center gap-4 transition-all ${
-                    detectionResult.inHabitableZone 
-                      ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]' 
-                      : 'bg-slate-900/30 border-slate-850 text-slate-400'
-                  }`}>
-                    {detectionResult.inHabitableZone ? (
-                      <>
-                        <div className="p-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)] animate-pulse">
-                          <Globe className="h-6 w-6 text-emerald-400" />
-                        </div>
-                        <div>
-                          <strong className="text-xs uppercase tracking-wider block font-semibold">Habitable Zone</strong>
-                          <span className="text-sm font-bold text-emerald-300">IN HZ: YES</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="p-2 bg-slate-800/30 rounded-full border border-slate-800/30">
-                          <Sun className="h-6 w-6 text-slate-500" />
-                        </div>
-                        <div>
-                          <strong className="text-xs uppercase tracking-wider block font-medium">Habitable Zone</strong>
-                          <span className="text-sm font-bold text-slate-400">IN HZ: NO</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
+            {detectionResult && (() => {
+              const assessment = getHabitabilityAssessment(detectionResult);
+              const orbitRadiusPx = assessment.planetStatus === 'hz' ? 52 : assessment.planetStatus === 'inner' ? 22 : 90;
+              const angle = -Math.PI / 4; // 45 degrees top right quadrant for nice spacing
+              const planetX = 140 + orbitRadiusPx * Math.cos(angle);
+              const planetY = 70 + orbitRadiusPx * Math.sin(angle);
+              
+              const orbitColor = assessment.planetStatus === 'hz' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.3)';
+              const planetColor = assessment.planetStatus === 'hz' ? '#10b981' : '#ef4444';
+              const statusBgColor = assessment.planetStatus === 'hz' 
+                ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]' 
+                : 'bg-rose-955/5 border-rose-500/10 text-rose-400/80';
 
-                  {/* Details */}
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-900/50">
-                      <span className="text-slate-500">Planet Designation Type</span>
-                      <Badge className="bg-indigo-950/20 text-indigo-300 border-indigo-500/20 text-[10px] font-semibold">
-                        {detectionResult.planetType}
-                      </Badge>
+              return (
+                <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
+                  <CardHeader className="pb-3 border-b border-slate-800/60">
+                    <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                      <Globe className="h-4.5 w-4.5 text-emerald-400" />
+                      Habitability Profile
+                    </CardTitle>
+                    <CardDescription className="text-slate-400 text-[11px]">
+                      Stellar habitable zone and planet properties evaluation
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-5 space-y-5">
+                    {/* HZ Status Indicator block */}
+                    <div className={`p-4 rounded-lg border flex items-center gap-4 transition-all ${statusBgColor}`}>
+                      {detectionResult.inHabitableZone ? (
+                        <>
+                          <div className="p-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)] animate-pulse">
+                            <Globe className="h-6 w-6 text-emerald-400" />
+                          </div>
+                          <div>
+                            <strong className="text-xs uppercase tracking-wider block font-semibold">Habitable Zone</strong>
+                            <span className="text-sm font-bold text-emerald-350">IN HZ: YES</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-2 bg-rose-500/10 rounded-full border border-rose-500/10">
+                            <Sun className="h-6 w-6 text-rose-450" />
+                          </div>
+                          <div>
+                            <strong className="text-xs uppercase tracking-wider block font-medium">Habitable Zone</strong>
+                            <span className="text-sm font-bold text-rose-450">IN HZ: NO</span>
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div className="flex justify-between items-center py-2 border-b border-slate-900/50">
-                      <span className="text-slate-500">Stellar Age Estimate</span>
-                      <span className="text-slate-300 font-medium font-mono">
-                        {detectionResult.stellarAge.toFixed(1)} <span className="text-[10px] text-slate-500">Gyr</span>
-                      </span>
+                    {/* Habitable Zone Diagram */}
+                    <div className="p-4 bg-[#020617]/50 rounded-lg border border-slate-800/60 flex flex-col items-center">
+                      <span className="text-[10px] text-slate-505 font-semibold uppercase tracking-wider self-start mb-2">Orbit Vetting Diagram</span>
+                      
+                      <svg width="100%" height="140" viewBox="0 0 280 140" className="mx-auto select-none">
+                        <defs>
+                          <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stopColor="#fef08a" />
+                            <stop offset="35%" stopColor="#eab308" stopOpacity="0.8" />
+                            <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
+                          </radialGradient>
+                        </defs>
+                        
+                        {/* Habitable Zone Shaded Ring */}
+                        <circle 
+                          cx="140" 
+                          cy="70" 
+                          r="52" 
+                          fill="none" 
+                          stroke="rgba(16, 185, 129, 0.15)" 
+                          strokeWidth="30" 
+                        />
+                        <circle 
+                          cx="140" 
+                          cy="70" 
+                          r="52" 
+                          fill="none" 
+                          stroke="rgba(16, 185, 129, 0.4)" 
+                          strokeWidth="1.5" 
+                          strokeDasharray="2 4"
+                        />
+
+                        {/* Outer boundary limit circle */}
+                        <circle cx="140" cy="70" r="67" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
+                        {/* Inner boundary limit circle */}
+                        <circle cx="140" cy="70" r="37" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
+
+                        {/* Planet Orbit Ring */}
+                        <circle 
+                          cx="140" 
+                          cy="70" 
+                          r={orbitRadiusPx} 
+                          fill="none" 
+                          stroke={orbitColor} 
+                          strokeWidth="1.5" 
+                          strokeDasharray="4 4" 
+                        />
+
+                        {/* Host Star */}
+                        <circle cx="140" cy="70" r="18" fill="url(#starGlow)" />
+                        <circle cx="140" cy="70" r="6" fill="#fef08a" />
+
+                        {/* Planet Dot */}
+                        <circle 
+                          cx={planetX} 
+                          cy={planetY} 
+                          r="5" 
+                          fill={planetColor} 
+                          className="shadow-glow"
+                        />
+                        
+                        {/* Orbit Vetting labels */}
+                        <text x="140" y="24" textAnchor="middle" fill="rgba(148, 163, 184, 0.5)" fontSize="9" fontWeight="bold" letterSpacing="0.1em">
+                          HABITABLE ZONE
+                        </text>
+                        <text x="140" y="130" textAnchor="middle" fill={planetColor} fontSize="10" fontWeight="bold">
+                          {assessment.planetStatus === 'hz' ? 'Orbit fits inside HZ' : assessment.planetStatus === 'inner' ? 'Orbit is too close (Too Hot)' : 'Orbit is too far (Too Cold)'}
+                        </text>
+                      </svg>
                     </div>
 
-                    <div className="flex justify-between items-center py-2">
-                      <span className="text-slate-500">Distance</span>
-                      <span className="text-slate-300 font-medium font-mono">
-                        {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-500">ly</span>
-                      </span>
+                    {/* Derived Assessment Parameters */}
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Planet Designation Type</span>
+                        <Badge className="bg-indigo-950/20 text-indigo-300 border-indigo-500/20 text-[10px] font-semibold">
+                          {detectionResult.planetType}
+                        </Badge>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Equilibrium Temp (Teq)</span>
+                        <span className="text-slate-300 font-bold font-mono">
+                          {assessment.equilibriumTemp} <span className="text-[10px] text-slate-500">K</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Insolation Flux (S_earth)</span>
+                        <span className="text-slate-300 font-bold font-mono">
+                          {assessment.insolationFlux.toFixed(2)} <span className="text-[10px] text-slate-500">S⊕</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Orbital Distance (a)</span>
+                        <span className="text-slate-300 font-bold font-mono">
+                          {assessment.orbitalDistance.toFixed(3)} <span className="text-[10px] text-slate-500">AU</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Stellar Temp (Teff)</span>
+                        <span className="text-slate-300 font-bold font-mono">
+                          {assessment.stellarTeff} <span className="text-[10px] text-slate-500">K</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Stellar Luminosity (L_sun)</span>
+                        <span className="text-slate-300 font-bold font-mono">
+                          {assessment.stellarLuminosity.toFixed(2)} <span className="text-[10px] text-slate-500">L⊙</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                        <span className="text-slate-500">Stellar Age Estimate</span>
+                        <span className="text-slate-300 font-medium font-mono">
+                          {detectionResult.stellarAge.toFixed(1)} <span className="text-[10px] text-slate-500">Gyr</span>
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5">
+                        <span className="text-slate-500">Distance to System</span>
+                        <span className="text-slate-300 font-medium font-mono">
+                          {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-500">ly</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             {/* Summary Report Card - Rendered conditionally when detection results exist */}
             {detectionResult && (

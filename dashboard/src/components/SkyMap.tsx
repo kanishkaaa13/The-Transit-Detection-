@@ -6,21 +6,28 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  CartesianGrid,
-  Cell
+  CartesianGrid
 } from 'recharts';
 import { 
   Compass, 
-  Info, 
   Filter, 
   Search, 
   Orbit,
   Star,
-  RefreshCw
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface SkyStar {
   id: string;
@@ -40,6 +47,12 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  
+  // Interactive Sky Map enhancements
+  const [raDomain, setRaDomain] = useState<[number, number]>([0, 360]);
+  const [decDomain, setDecDomain] = useState<[number, number]>([-90, -80]);
+  const [scaleBySize, setScaleBySize] = useState<boolean>(false);
+  const [selectedPopoverStar, setSelectedPopoverStar] = useState<SkyStar | null>(null);
 
   // Colors mapping for classifications
   const colors = {
@@ -76,7 +89,7 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
       });
   }, []);
 
-  // Filter stars based on query and type filter
+  // Filter Target List sidebar only
   useEffect(() => {
     let result = stars;
 
@@ -91,36 +104,110 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     setFilteredStars(result);
   }, [searchQuery, typeFilter, stars]);
 
-  const handlePointClick = (data: any) => {
-    if (data && data.id) {
-      onSelectStar(data.id);
+  // Zoom functions
+  const handleZoomIn = () => {
+    const raCenter = (raDomain[0] + raDomain[1]) / 2;
+    const raSpan = (raDomain[1] - raDomain[0]) / 4;
+    
+    const decCenter = (decDomain[0] + decDomain[1]) / 2;
+    const decSpan = (decDomain[1] - decDomain[0]) / 4;
+
+    setRaDomain([raCenter - raSpan, raCenter + raSpan]);
+    setDecDomain([decCenter - decSpan, decCenter + decSpan]);
+  };
+
+  const handleZoomOut = () => {
+    const raCenter = (raDomain[0] + raDomain[1]) / 2;
+    const raSpan = raDomain[1] - raDomain[0];
+    
+    const decCenter = (decDomain[0] + decDomain[1]) / 2;
+    const decSpan = decDomain[1] - decDomain[0];
+
+    const newRaMin = Math.max(0, raCenter - raSpan);
+    const newRaMax = Math.min(360, raCenter + raSpan);
+    const newDecMin = Math.max(-90, decCenter - decSpan);
+    const newDecMax = Math.min(-80, decCenter + decSpan);
+
+    setRaDomain([newRaMin, newRaMax]);
+    setDecDomain([newDecMin, newDecMax]);
+  };
+
+  const handleResetZoom = () => {
+    setRaDomain([0, 360]);
+    setDecDomain([-90, -80]);
+  };
+
+  // Pan functions
+  const handlePan = (direction: 'up' | 'down' | 'left' | 'right') => {
+    const raSpan = raDomain[1] - raDomain[0];
+    const decSpan = decDomain[1] - decDomain[0];
+    const shiftRatio = 0.25;
+
+    if (direction === 'left') {
+      const shift = raSpan * shiftRatio;
+      setRaDomain([Math.max(0, raDomain[0] - shift), Math.max(raSpan, raDomain[1] - shift)]);
+    } else if (direction === 'right') {
+      const shift = raSpan * shiftRatio;
+      setRaDomain([Math.min(360 - raSpan, raDomain[0] + shift), Math.min(360, raDomain[1] + shift)]);
+    } else if (direction === 'down') {
+      const shift = decSpan * shiftRatio;
+      setDecDomain([Math.max(-90, decDomain[0] - shift), Math.max(-90 + decSpan, decDomain[1] - shift)]);
+    } else if (direction === 'up') {
+      const shift = decSpan * shiftRatio;
+      setDecDomain([Math.min(-80 - decSpan, decDomain[0] + shift), Math.min(-80, decDomain[1] + shift)]);
     }
   };
 
-  // Custom tooltips for Recharts scatter plot
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data: SkyStar = payload[0].payload;
-      return (
-        <div className="bg-[#020617] border border-slate-800 p-3 rounded-lg shadow-xl text-xs space-y-1.5 backdrop-blur-md">
-          <div className="flex justify-between items-center gap-6">
-            <span className="font-bold text-slate-100 font-mono">TIC {data.id}</span>
-            <Badge variant="outline" className={`text-[10px] font-semibold ${badgeColors[data.classification]}`}>
-              {data.classification}
-            </Badge>
-          </div>
-          <div className="text-slate-400 space-y-0.5 font-mono">
-            <p>RA: {data.ra.toFixed(4)}°</p>
-            <p>Dec: {data.dec.toFixed(4)}°</p>
-            <p>Confidence: {(data.confidence * 100).toFixed(1)}%</p>
-          </div>
-          <p className="text-[10px] text-indigo-400 italic pt-1.5 border-t border-slate-900 mt-1">
-            Click target point to view light curve
-          </p>
-        </div>
-      );
+  // Popover details navigation click
+  const handleInspectNavigate = () => {
+    if (selectedPopoverStar) {
+      onSelectStar(selectedPopoverStar.id);
     }
-    return null;
+  };
+
+  // Custom Dot shape mapping highlight opacity and toggled confidence scale sizes
+  const renderCustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (cx === undefined || cy === undefined) return null;
+
+    const isHighlighted = searchQuery ? payload.id.includes(searchQuery) : false;
+    const isSelected = selectedPopoverStar ? payload.id === selectedPopoverStar.id : false;
+
+    // Radius logic
+    let r = 5.5;
+    if (scaleBySize) {
+      r = payload.confidence * 8.5 + 3; // maps 0.5-1.0 to size 7.25-11.5
+    }
+
+    if (isHighlighted || isSelected) {
+      r = r + 4.5;
+    }
+
+    const fill = colors[payload.classification as 'Exoplanet' | 'Binary Star' | 'Stellar Blend' | 'Starspot'] || '#94a3b8';
+    const stroke = isHighlighted ? '#ffffff' : isSelected ? '#a5b4fc' : 'rgba(255, 255, 255, 0.15)';
+    const strokeWidth = isHighlighted ? 2.5 : isSelected ? 2.0 : 0.5;
+    
+    // Dim out non-matched coordinates if filters exist
+    let opacity = 1.0;
+    if (searchQuery && !isHighlighted) {
+      opacity = 0.15;
+    } else if (typeFilter !== 'all' && payload.classification !== typeFilter) {
+      opacity = 0.15;
+    }
+
+    return (
+      <circle 
+        cx={cx} 
+        cy={cy} 
+        r={r} 
+        fill={fill} 
+        stroke={stroke} 
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+        className="transition-all duration-300 hover:scale-150 hover:stroke-white cursor-pointer"
+        onClick={() => setSelectedPopoverStar(payload)}
+      />
+    );
   };
 
   return (
@@ -137,17 +224,17 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               </div>
               <div>
                 <h3 className="text-md font-bold text-slate-200">Southern Polar Sky Map</h3>
-                <p className="text-xs text-slate-400">Celestial coordinates of dwarf stars targeted for transit signals</p>
+                <p className="text-xs text-slate-400">Celestial coordinates of targeted dwarf stars. Highlight stars dynamically.</p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              {/* Search target by ID */}
+              {/* Highlight Target search bar */}
               <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
                   type="text"
-                  placeholder="Filter by TIC ID..."
+                  placeholder="Highlight Target (TIC ID)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.replace(/\D/g, ''))}
                   className="pl-8 bg-[#020617]/50 border-slate-700 text-indigo-100 placeholder:text-slate-500 text-xs h-9"
@@ -160,7 +247,7 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="w-full h-9 pl-8 pr-3 rounded-md bg-[#020617]/50 border border-slate-700 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+                  className="w-full h-9 pl-8 pr-3 rounded-md bg-[#020617]/50 border border-slate-700 text-slate-330 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
                 >
                   <option value="all">All Classifications</option>
                   <option value="Exoplanet">Exoplanets</option>
@@ -178,92 +265,169 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
           Main Sky Map Layout
           --------------------------------------------------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Right side Celestial Scatter Chart (3 cols) */}
-        <Card className="lg:col-span-3 bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md min-h-[500px] flex flex-col">
+        {/* Celestial Scatter Chart (3 cols) */}
+        <Card className="lg:col-span-3 bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md min-h-[520px] flex flex-col relative overflow-hidden">
           <CardHeader className="pb-2">
-            <CardTitle className="text-md font-semibold text-slate-200 flex items-center gap-2">
-              <Orbit className="h-4.5 w-4.5 text-indigo-400" />
-              Stellar Field Distribution
-            </CardTitle>
-            <CardDescription className="text-slate-400 text-xs">
-              Declination (Dec) vs. Right Ascension (RA) mapping. Click points to jump to detail view.
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <CardTitle className="text-md font-semibold text-slate-200 flex items-center gap-2">
+                  <Orbit className="h-4.5 w-4.5 text-indigo-400" />
+                  Stellar Field Distribution
+                </CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Declination (Dec) vs. Right Ascension (RA) mapping. Selected stars highlight white.
+                </CardDescription>
+              </div>
+
+              {/* Point size scale toggle */}
+              <div className="flex items-center gap-2 bg-[#020617]/40 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                <span className="text-slate-400">Scale by Confidence</span>
+                <input 
+                  type="checkbox"
+                  checked={scaleBySize}
+                  onChange={(e) => setScaleBySize(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-indigo-500 cursor-pointer rounded"
+                />
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="flex-1 flex items-center justify-center p-6">
+          <CardContent className="flex-1 flex flex-col justify-between p-6 relative">
             {loading ? (
-              <div className="text-center py-20 space-y-4">
+              <div className="text-center py-24 space-y-4 my-auto">
                 <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mx-auto" />
                 <p className="text-xs text-slate-500">Mapping celestial target catalog...</p>
               </div>
-            ) : filteredStars.length === 0 ? (
-              <div className="text-center py-20 space-y-2">
-                <Info className="h-10 w-10 text-slate-600 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-400">No targets found</h4>
-                <p className="text-xs text-slate-500">Try adjusting your filters or search query.</p>
-              </div>
             ) : (
-              <div className="h-[400px] w-full mt-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart
-                    margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.03)" />
-                    <XAxis 
-                      type="number" 
-                      dataKey="ra" 
-                      name="RA" 
-                      unit="°" 
-                      domain={[0, 360]}
-                      stroke="rgba(148, 163, 184, 0.4)"
-                      fontSize={11}
-                      label={{ 
-                        value: 'Right Ascension (RA) deg', 
-                        position: 'insideBottom', 
-                        offset: -10, 
-                        fill: 'rgba(148, 163, 184, 0.6)',
-                        fontSize: 12
-                      }}
-                    />
-                    <YAxis 
-                      type="number" 
-                      dataKey="dec" 
-                      name="Dec" 
-                      unit="°" 
-                      domain={[-90, -80]} // TESS Southern Polar Cap covers -90 to -80 Declination
-                      stroke="rgba(148, 163, 184, 0.4)"
-                      fontSize={11}
-                      label={{ 
-                        value: 'Declination (Dec) deg', 
-                        angle: -90, 
-                        position: 'insideLeft', 
-                        offset: -5, 
-                        fill: 'rgba(148, 163, 184, 0.6)',
-                        fontSize: 12
-                      }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Scatter 
-                      name="Stellar Coordinates" 
-                      data={filteredStars} 
-                      onClick={(node) => handlePointClick(node)}
-                      className="cursor-pointer"
+              <div className="relative w-full flex-1 flex flex-col justify-between">
+                
+                {/* SVG Zoom & Pan Controls Overlay (top-left) */}
+                <div className="absolute top-0 left-0 z-10 flex flex-col gap-2 bg-[#020617]/60 p-2.5 rounded-lg border border-slate-800 backdrop-blur-sm">
+                  <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block text-center mb-1">Controls</span>
+                  <div className="flex gap-1.5">
+                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleZoomIn} title="Zoom In">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleZoomOut} title="Zoom Out">
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleResetZoom} title="Reset Scope">
+                      <Maximize2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  {/* Pan buttons compass pad */}
+                  <div className="grid grid-cols-3 gap-1 mt-2 mx-auto w-[85px]">
+                    <div />
+                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('up')}>
+                      <ArrowUp className="h-3 w-3" />
+                    </Button>
+                    <div />
+                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('left')}>
+                      <ArrowLeft className="h-3 w-3" />
+                    </Button>
+                    <div className="h-6 w-6 rounded bg-[#020617]/45 border border-slate-900 flex items-center justify-center text-[8px] text-slate-600 font-bold">PAN</div>
+                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('right')}>
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                    <div />
+                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('down')}>
+                      <ArrowDown className="h-3 w-3" />
+                    </Button>
+                    <div />
+                  </div>
+                </div>
+
+                {/* Floating Inspector Popover (bottom-left) */}
+                {selectedPopoverStar && (
+                  <div className="absolute bottom-0 left-0 z-10 w-60 bg-[#020617]/95 border border-slate-850 p-3.5 rounded-lg shadow-2xl space-y-2.5 backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-500 font-semibold font-mono">SELECTED STAR</span>
+                        <strong className="text-sm text-slate-100 font-mono">TIC {selectedPopoverStar.id}</strong>
+                      </div>
+                      <Badge variant="outline" className={`text-[9px] font-semibold ${badgeColors[selectedPopoverStar.classification]}`}>
+                        {selectedPopoverStar.classification}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-400 border-t border-slate-900 pt-2">
+                      <div>
+                        <span className="text-slate-600 block">Confidence</span>
+                        <strong className="text-indigo-300 font-bold">{(selectedPopoverStar.confidence * 100).toFixed(1)}%</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-600 block">Mock Period</span>
+                        <strong className="text-slate-300">
+                          {((Number(selectedPopoverStar.id) % 15) + 1.25).toFixed(3)} d
+                        </strong>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleInspectNavigate} 
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[10px] h-8 shadow-md cursor-pointer"
                     >
-                      {filteredStars.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={colors[entry.classification]} 
-                          className="hover:scale-155 hover:stroke-white hover:stroke-2 transition-all duration-200"
-                        />
-                      ))}
-                    </Scatter>
-                  </ScatterChart>
-                </ResponsiveContainer>
+                      Inspect Telemetry Detail
+                      <ChevronRight className="h-3 w-3 ml-1 shrink-0" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Recharts Scatter chart viewport */}
+                <div className="h-[400px] w-full mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart
+                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.03)" />
+                      <XAxis 
+                        type="number" 
+                        dataKey="ra" 
+                        name="RA" 
+                        unit="°" 
+                        domain={raDomain}
+                        allowDataOverflow={true}
+                        stroke="rgba(148, 163, 184, 0.4)"
+                        fontSize={11}
+                        label={{ 
+                          value: 'Right Ascension (RA) deg', 
+                          position: 'insideBottom', 
+                          offset: -10, 
+                          fill: 'rgba(148, 163, 184, 0.6)',
+                          fontSize: 12
+                        }}
+                      />
+                      <YAxis 
+                        type="number" 
+                        dataKey="dec" 
+                        name="Dec" 
+                        unit="°" 
+                        domain={decDomain}
+                        allowDataOverflow={true}
+                        stroke="rgba(148, 163, 184, 0.4)"
+                        fontSize={11}
+                        label={{ 
+                          value: 'Declination (Dec) deg', 
+                          angle: -90, 
+                          position: 'insideLeft', 
+                          offset: -5, 
+                          fill: 'rgba(148, 163, 184, 0.6)',
+                          fontSize: 12
+                        }}
+                      />
+                      <Tooltip cursor={{ strokeDasharray: '3 3', stroke: 'rgba(99, 102, 241, 0.2)' }} content={() => null} />
+                      <Scatter 
+                        name="Stellar Coordinates" 
+                        data={stars} 
+                        shape={renderCustomDot}
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Left side Targets Quick Navigation List (1 col) */}
+        {/* Left Targets Quick Navigation List (1 col) */}
         <Card className="bg-[#0f172a]/20 border-slate-850 flex flex-col max-h-[550px]">
           <CardHeader className="pb-3 border-b border-slate-800/40">
             <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -280,8 +444,12 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               filteredStars.map(star => (
                 <div 
                   key={star.id} 
-                  className="p-3.5 hover:bg-[#0f172a]/40 cursor-pointer flex flex-col gap-1.5 transition-all active:bg-[#0f172a]/60 group"
-                  onClick={() => onSelectStar(star.id)}
+                  className={`p-3.5 cursor-pointer flex flex-col gap-1.5 transition-all group ${
+                    selectedPopoverStar && selectedPopoverStar.id === star.id 
+                      ? 'bg-indigo-950/15 border-l-2 border-indigo-500' 
+                      : 'hover:bg-[#0f172a]/40 active:bg-[#0f172a]/60'
+                  }`}
+                  onClick={() => setSelectedPopoverStar(star)}
                 >
                   <div className="flex justify-between items-center">
                     <strong className="text-xs text-slate-200 font-mono group-hover:text-indigo-400 transition-colors">

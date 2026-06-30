@@ -3,11 +3,8 @@ import {
   Search, 
   Filter, 
   ArrowUpDown, 
-  Compass, 
-  Star,
-  CheckCircle2,
-  AlertTriangle,
-  ChevronRight,
+  AlertTriangle, 
+  ChevronRight, 
   TrendingUp
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +29,6 @@ export function getAllTargetsRanked(starsList: StarTarget[]): StarTarget[] {
 }
 
 export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
-  const [stars, setStars] = useState<StarTarget[]>([]);
   const [rankedStars, setRankedStars] = useState<StarTarget[]>([]);
   const [filteredStars, setFilteredStars] = useState<StarTarget[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -53,7 +49,6 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
     fetch('/api/sky-map-stars')
       .then(res => res.json())
       .then((data: StarTarget[]) => {
-        setStars(data);
         const ranked = getAllTargetsRanked(data);
         setRankedStars(ranked);
         setFilteredStars(ranked);

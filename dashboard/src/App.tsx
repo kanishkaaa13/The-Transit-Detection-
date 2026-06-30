@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
+import { PriorityQueue } from './components/PriorityQueue';
 import { 
   Orbit, 
   Database, 
@@ -8,12 +9,13 @@ import {
   FileText,
   Activity,
   Compass,
-  Zap
+  Zap,
+  ListTodo
 } from 'lucide-react';
 
 function App() {
   const [starCount, setStarCount] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'viewer' | 'skymap'>('viewer');
+  const [activeTab, setActiveTab] = useState<'viewer' | 'skymap' | 'queue'>('viewer');
   const [selectedStarId, setSelectedStarId] = useState<string>('451598465');
 
   // Load count of stars from api list to show on top
@@ -134,6 +136,17 @@ function App() {
             <Compass className="h-4 w-4" />
             Southern Sky Map
           </button>
+          <button 
+            className={`px-6 py-3 text-xs sm:text-sm font-black uppercase tracking-wider border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === 'queue' 
+                ? 'border-indigo-500 text-indigo-400 font-heading bg-indigo-500/5 shadow-[inset_0_-2px_0_#6366f1]' 
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+            onClick={() => setActiveTab('queue')}
+          >
+            <ListTodo className="h-4 w-4" />
+            Priority Queue
+          </button>
         </div>
 
         {/* Tab views */}
@@ -143,8 +156,10 @@ function App() {
               selectedStarId={selectedStarId} 
               onSelectStar={setSelectedStarId} 
             />
-          ) : (
+          ) : activeTab === 'skymap' ? (
             <SkyMap onSelectStar={handleSelectStar} />
+          ) : (
+            <PriorityQueue onSelectStar={handleSelectStar} />
           )}
         </div>
 
