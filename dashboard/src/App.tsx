@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
 import { PriorityQueue } from './components/PriorityQueue';
@@ -43,7 +43,7 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
-function ToastStack() {
+function ToastStack({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -74,6 +74,8 @@ function ToastStack() {
 
   return (
     <ToastContext.Provider value={{ addToast }}>
+      {children}
+      {/* Toast stack — fixed bottom-right, outside normal flow */}
       <div className="fixed bottom-6 right-6 z-[1000] flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map(t => (
           <div
@@ -96,6 +98,7 @@ function ToastStack() {
     </ToastContext.Provider>
   );
 }
+
 
 // =================================================================
 // FEATURE 2 STUB: getRecentActivity()
