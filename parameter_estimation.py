@@ -346,7 +346,95 @@ def check_habitable_zone(
 
 
 # ---------------------------------------------------------------------------
-# Quick verification block
+# Orchestration
+# ---------------------------------------------------------------------------
+
+def _round_sigfigs(value: float, sig: int) -> float:
+    """Round *value* to *sig* significant figures."""
+    import math
+    if value == 0:
+        return 0.0
+    magnitude = math.floor(math.log10(abs(value)))
+    factor = 10 ** (sig - 1 - magnitude)
+    return round(value * factor) / factor
+
+
+def run_parameter_estimation(star: dict, transit: dict) -> dict:
+    """
+    Run the full parameter-estimation pipeline for one planet candidate.
+
+    Parameters
+    ----------
+    star : dict
+        Stellar properties with keys:
+          rad   -- stellar radius in solar radii
+          mass  -- stellar mass in solar masses
+          rho   -- stellar density in g/cc
+          Teff  -- effective temperature in K
+          lum   -- luminosity in solar luminosities
+          Tmag  -- TESS magnitude
+    transit : dict
+        Transit observables with keys:
+          depth       -- fractional transit depth (0 < depth < 1)
+          period_days -- orbital period in days
+          n_transits  -- number of observed transits
+
+    Returns
+    -------
+    dict
+        {
+          "planet_radius_rj"     : float,  # planet radius in Jupiter radii
+          "semimajor_axis_au"    : float,  # semi-major axis in AU
+          "transit_duration_hr"  : float,  # transit duration in hours
+          "snr"                  : float,  # signal-to-noise ratio
+          "in_hz"                : bool,   # inside habitable zone?
+          "hz_inner_au"          : float,  # HZ inner edge in AU
+          "hz_outer_au"          : float,  # HZ outer edge in AU
+        }
+        All float values are rounded to 3 significant figures.
+
+    Raises
+    ------
+    KeyError
+        If a required key is missing from *star* or *transit*.
+    """
+    # 1. Planet radius
+    r_planet = estimate_planet_radius(
+        star["rad"], transit["depth"]
+    )
+
+    # 2. Semi-major axis
+    a_au = estimate_semimajor_axis(
+        star["mass"], transit["period_days"]
+    )
+
+    # 3. Transit duration (needs the just-derived semi-major axis)
+    t_dur = estimate_transit_duration(
+        star["rho"], transit["period_days"], a_au
+    )
+
+    # 4. SNR
+    snr = estimate_snr(
+        star["Tmag"], transit["depth"], transit["n_transits"], t_dur
+    )
+
+    # 5. Habitable-zone check
+    hz = check_habitable_zone(
+        star["Teff"], star["lum"], a_au
+    )
+
+    _r = _round_sigfigs  # shorthand
+    return {
+        "planet_radius_rj":    _r(r_planet, 3),
+        "semimajor_axis_au":   _r(a_au,     3),
+        "transit_duration_hr": _r(t_dur,    3),
+        "snr":                 _r(snr,      3),
+        "in_hz":               hz["in_hz"],
+        "hz_inner_au":         _r(hz["hz_inner_au"], 3),
+        "hz_outer_au":         _r(hz["hz_outer_au"], 3),
+    }
+
+
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     examples = [
@@ -423,3 +511,28 @@ if __name__ == "__main__":
             f"{result['hz_inner_au']:<13.4f} {result['hz_outer_au']:<13.4f} "
             f"{flag:<8} {desc}"
         )
+
+    # --- run_parameter_estimation pipeline test ---
+    print()
+    print("=" * 60)
+    print("Pipeline test: run_parameter_estimation")
+    print("=" * 60)
+    pipeline_star = {
+        "Tmag": 10.5,
+        "Teff": 5800,
+        "lum":  1.1,
+        "rad":  1.02,
+        "mass": 1.0,
+        "rho":  1.4,
+    }
+    pipeline_transit = {
+        "depth":       0.0101,
+        "period_days": 4.61,
+        "n_transits":  8,
+    }
+    res = run_parameter_estimation(pipeline_star, pipeline_transit)
+    print(f"  Planet radius   : {res['planet_radius_rj']:.3g} R_Jup  (expected ~1.02)")
+    print(f"  Semi-major axis : {res['semimajor_axis_au']:.3g} AU     (expected ~0.056)")
+    print(f"  Transit duration: {res['transit_duration_hr']:.3g} hr")
+    print(f"  SNR             : {res['snr']:.3g}")
+    print(f"  In HZ?          : {res['in_hz']}  (HZ: {res['hz_inner_au']:.3g} - {res['hz_outer_au']:.3g} AU)")
