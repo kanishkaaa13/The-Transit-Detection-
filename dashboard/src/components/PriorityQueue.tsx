@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
-  ArrowUpDown, 
   AlertTriangle, 
   ChevronRight, 
   TrendingUp,
