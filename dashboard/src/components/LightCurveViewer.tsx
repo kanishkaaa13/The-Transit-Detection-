@@ -34,6 +34,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SkySnapshot } from '@/components/SkySnapshot';
+import { useToast } from '@/App';
 
 // ---------------------------------------------------------
 // Types & Signatures
@@ -599,13 +600,8 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
   });
 }
 
-export function LightCurveViewer({ 
-  selectedStarId, 
-  onSelectStar 
-}: { 
-  selectedStarId?: string; 
-  onSelectStar?: (id: string) => void;
-}) {
+export function LightCurveViewer({ selectedStarId, onSelectStar }: LightCurveViewerProps) {
+  const { addToast } = useToast();
   // Selection and searching
   const [ticId, setTicId] = useState<string>('451598465');
   const [activeTicId, setActiveTicId] = useState<string>('');
@@ -889,6 +885,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+        addToast('Copied to clipboard', 'success');
       })
       .catch(err => {
         console.error("Failed to copy text:", err);
@@ -1040,6 +1037,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       doc.text("Report compiled automatically via TESS Exoplanet Transit Analysis Pipeline. — Page 2 of 2", 14, 285);
       
       doc.save(`TIC_${activeTicId}_Scientific_Report.pdf`);
+      addToast(`Report downloaded — TIC ${activeTicId}.pdf`, 'success', 4000);
     }).catch(err => {
       console.error('PDF generation failed:', err);
       setPdfError(true);
@@ -1137,26 +1135,55 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       {loading ? (
         // Loading State: Skeleton Layout
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 bg-[#0f172a]/30 border-slate-800">
-            <CardHeader className="space-y-2">
-              <div className="h-6 w-1/3 bg-slate-800 animate-pulse rounded" />
-              <div className="h-4 w-1/4 bg-slate-800/60 animate-pulse rounded" />
+          {/* Chart skeleton card */}
+          <Card className="lg:col-span-2 bg-[#0f172a]/30 border-slate-800 overflow-hidden">
+            <CardHeader className="space-y-2 pb-4">
+              <div className="h-5 w-2/5 bg-slate-800/80 rounded skeleton" />
+              <div className="h-3.5 w-1/4 bg-slate-800/50 rounded skeleton" style={{ animationDelay: '0.1s' }} />
             </CardHeader>
             <CardContent>
-              <div className="h-[400px] w-full bg-slate-900/30 animate-pulse border border-dashed border-slate-800/40 rounded flex items-center justify-center">
-                <Orbit className="h-10 w-10 text-indigo-500/30 animate-spin" />
+              {/* Simulated chart area with fake axis lines and data bars */}
+              <div className="h-[400px] w-full bg-[#060c1a]/60 rounded-lg border border-slate-800/30 relative overflow-hidden">
+                {/* Shimmer sweep overlay */}
+                <div className="absolute inset-0 skeleton opacity-60" />
+                {/* Fake y-axis */}
+                <div className="absolute left-10 top-4 bottom-10 w-px bg-slate-800/60" />
+                {/* Fake x-axis */}
+                <div className="absolute left-10 right-4 bottom-10 h-px bg-slate-800/60" />
+                {/* Fake data wave lines — staggered heights to mimic a photometry curve */}
+                {[72, 55, 65, 48, 58, 42, 62, 50, 68, 45, 60].map((h, i) => (
+                  <div
+                    key={i}
+                    className="absolute bottom-10 bg-indigo-500/10 rounded-t-sm"
+                    style={{
+                      left: `${10 + i * 8}%`,
+                      width: '6%',
+                      height: `${h}%`,
+                      animationDelay: `${i * 0.08}s`,
+                    }}
+                  />
+                ))}
+                {/* Central orbit icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Orbit className="h-8 w-8 text-indigo-500/20 animate-spin" style={{ animationDuration: '4s' }} />
+                </div>
               </div>
             </CardContent>
           </Card>
+          {/* Right panel skeleton */}
           <div className="space-y-6">
-            <Card className="bg-[#0f172a]/30 border-slate-800">
-              <CardHeader><div className="h-6 w-1/2 bg-slate-800 animate-pulse rounded" /></CardHeader>
-              <CardContent className="space-y-6">
-                <div className="h-12 bg-slate-850 animate-pulse rounded-md" />
-                <div className="space-y-2">
-                  <div className="h-4 bg-slate-800 animate-pulse rounded w-3/4" />
-                  <div className="h-4 bg-slate-800 animate-pulse rounded w-1/2" />
+            <Card className="bg-[#0f172a]/30 border-slate-800 overflow-hidden">
+              <CardHeader>
+                <div className="h-5 w-1/2 bg-slate-800/80 rounded skeleton" />
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="h-11 bg-slate-800/60 rounded-md skeleton" />
+                <div className="space-y-3">
+                  <div className="h-3.5 bg-slate-800/60 rounded skeleton w-4/5" style={{ animationDelay: '0.15s' }} />
+                  <div className="h-3.5 bg-slate-800/40 rounded skeleton w-3/5" style={{ animationDelay: '0.25s' }} />
+                  <div className="h-3.5 bg-slate-800/40 rounded skeleton w-2/5" style={{ animationDelay: '0.35s' }} />
                 </div>
+                <div className="h-9 bg-slate-800/40 rounded-lg skeleton" style={{ animationDelay: '0.4s' }} />
               </CardContent>
             </Card>
           </div>
