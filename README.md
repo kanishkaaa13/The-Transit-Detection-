@@ -1,166 +1,157 @@
-# TESS Exoplanet Transit Detection Pipeline
+<h1 align="center">🌌 TESS Exoplanet Explorer</h1>
 
-This repository contains an end-to-end astronomical pipeline designed to query, clean, process, search, and classify exoplanet transit signals in photometric data from NASA's Transiting Exoplanet Survey Satellite (TESS).
+<p align="center">
+  <b>AI-Powered Exoplanet Transit Detection & Mission Control Dashboard using NASA TESS Photometry</b>
+</p>
 
-The pipeline is split into two primary phases:
-1. **Catalog Phase**: Prepares candidate stars from the TESS Input Catalog (TIC), imputing missing data and filtering down to prime target dwarf stars.
-2. **Signal Detection & ML Phase**: Retrieves 2-minute cadence light curves, filters and detrends stellar variability, runs a Box Least Squares (BLS) search, uses a custom 1D Convolutional Neural Network (CNN) to calculate transit probabilities, and scores candidate systems.
+<p align="center">
+  Built for ISRO Bharatiya Antariksh Hackathon (ISRO BAH 2026)
+</p>
 
----
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/PyTorch-1D_CNN-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white"/>
+  <img src="https://img.shields.io/badge/scikit--learn-XGBoost-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white"/>
+  <img src="https://img.shields.io/badge/NASA-TESS-0B3D91?style=for-the-badge&logo=nasa&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React-Dashboard-61DAFB?style=for-the-badge&logo=react&logoColor=black"/>
+  <img src="https://img.shields.io/badge/TypeScript-Frontend-3178C6?style=for-the-badge&logo=typescript&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Vite-Build-646CFF?style=for-the-badge&logo=vite&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Tailwind-UI-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white"/>
+</p>
 
-## 📂 Project Structure
-
-The project has been restructured to live directly at the root of the repository as follows:
-
-```
-├── data/
-│   ├── raw/
-│   │   ├── .gitkeep
-│   │   └── tic_southern_polar.csv          # Raw TIC query result
-│   ├── clean/
-│   │   ├── .gitkeep
-│   │   ├── null_report.csv                 # Column completeness report
-│   │   ├── tic_clean.parquet               # Cleaned/imputed TIC catalog (Parquet)
-│   │   └── prime_targets.csv               # Bright dwarf target star hand-off
-│   └── models/
-│       ├── transit_cnn_config.json         # CNN model hyperparameters
-│       └── transit_cnn_weights.pt          # Trained CNN state dict (CPU-safe)
-├── plots/
-│   ├── .gitkeep
-│   ├── cnn_example_inputs.png              # Sample inputs shown to CNN
-│   ├── cnn_roc_curve.png                   # CNN validation ROC curve
-│   ├── cnn_training_curves.png             # CNN loss, accuracy, and F1 logs
-│   ├── fig_01_null_rates.png               # Column completeness audit
-│   ├── fig_02_classification.png           # Stellar classifications count
-│   ├── fig_03_tmag.png                     # TESS magnitude distributions
-│   ├── fig_04_teff.png                     # Effective temperature & Spectral types
-│   ├── fig_05_logg.png                     # Surface gravity (dwarf vs. giant)
-│   ├── fig_06_hr_proxy.png                 # HR diagram (Kiel proxy)
-│   ├── fig_07_cmd.png                      # Gaia color-magnitude diagram (CMD)
-│   ├── fig_08_distance.png                 # Target distance distribution
-│   ├── fig_09_sky.png                      # Spatial footprint (RA/Dec)
-│   ├── fig_10_funnel.png                   # Selection funnel plot
-│   └── phase_folds/
-│       └── TIC_DEMO_star.png               # Example phase fold visual plot
-├── src/
-│   ├── __init__.py
-│   ├── config.py                           # Configuration and threshold definitions
-│   ├── utils.py                            # Logging and workspace utility tools
-│   ├── download.py                         # TIC catalog downloader (MAST API)
-│   ├── clean.py                            # Column cleaning & Ridge Teff calibration
-│   ├── eda_catalog.py                      # Exploratory Data Analysis & Plots
-│   ├── export_targets.py                   # Outputs prime target catalog
-│   ├── fetch_lightcurves.py                # Downloads TESS 2-min cadence light curves
-│   ├── clean_lightcurves.py                # Sigma-clipping & Savitzky-Golay detrending
-│   ├── run_bls.py                          # Box Least Squares periodogram search
-│   ├── plot_phase_folds.py                 # Generates phase-folded light curve plots
-│   ├── transit_cnn.py                      # 1D CNN architecture, training & dataset
-│   ├── score_candidates.py                 # Scoring pipeline (Empirical SNR + CNN)
-│   ├── _test_clean_lc.py                   # Smoke test for light curve cleaning
-│   ├── _test_run_bls.py                    # Smoke test for BLS search
-│   └── _test_score_candidates.py           # Smoke test for candidate scoring
-├── logs/                                   # Workspace runtime execution logs
-├── requirements.txt                        # Python dependencies
-└── README.md                               # Project documentation (this file)
-```
+<p align="center">
+  🔭 Detect &nbsp;•&nbsp; 📊 Classify &nbsp;•&nbsp; 🌍 Visualize &nbsp;•&nbsp; 🤖 Explain
+</p>
 
 ---
 
-## 🛠️ Pipeline Stages & Workflow
+## 🚀 Overview
 
-### Phase 1: Target Catalog Preparation
-1. **Config & Utils (`src/config.py`, `src/utils.py`)**: Centralizes parameters such as search coordinates, MAST URL, dwarf star parameters ($T_{mag} < 13.0$, $\log g \ge 4.0$), and folder directory mappings.
-2. **Download Catalog (`src/download.py`)**: Fetches TIC entries in a cone search around the southern polar cap using `astroquery` (primary) or direct paginated REST API strips (fallback). Caches raw data in `data/raw/tic_southern_polar.csv`.
-3. **Data Cleaning & Imputation (`src/clean.py`)**: Drops highly incomplete columns, fits a polynomial Ridge regression model to calibrate $T_{eff}$ from Gaia $BP-RP$ colors, imputes missing $T_{eff}$ parameters, adds derived features (spectral class `SpType_est`, proper motion), and flags high-priority targets (`prime_target`).
-4. **Target Export (`src/export_targets.py`)**: Filters the clean TIC catalog for `prime_target == True` and exports the bright target stars to `data/clean/prime_targets.csv`.
-5. **Plotting Suite (`src/eda_catalog.py`)**: Generates 10 diagnostic figures (saved in `plots/`) validating catalog quality, HR-diagram positions, distance, spatial coordinates, and the filtering funnel.
+**TESS Exoplanet Explorer** is an end-to-end astronomy pipeline and interactive dashboard that identifies potential exoplanets by analyzing photometric light curves from NASA's Transiting Exoplanet Survey Satellite (TESS).
 
-### Phase 2: Light Curve Processing & Transit Search
-1. **Fetch Light Curves (`src/fetch_lightcurves.py`)**: Iterates through `prime_targets.csv` and queries MAST for 2-minute SPOC cadence data. It automatically stitches multi-sector observations and writes them to `data/raw/lightcurves/TIC_<id>.csv`.
-2. **Stellar Detrending (`src/clean_lightcurves.py`)**: Applies iterative $\sigma$-clipping outlier removal, median-normalizes the flux, and executes a Savitzky-Golay high-pass filter (window length $\approx 3$ days) to subtract long-term stellar activity/rotation. Saves to `data/clean/lightcurves/TIC_<id>.csv`.
-3. **Box Least Squares Search (`src/run_bls.py`)**: Uses the `astropy.timeseries.BoxLeastSquares` algorithm on detrended light curves to search a frequency grid for periodic box-like transits. Identifies best-fit period $P$, epoch $t_0$, depth $\delta$, and duration $T$. Outputs to `data/results/bls_results.csv`.
-4. **Phase-Fold Plots (`src/plot_phase_folds.py`)**: Generates 2-panel inspection plots showing the full time-series and phase-folded light curves overlaid with the BLS box model.
+Starting from a catalog of **~19 lakh (1.9 million) TIC stars**, the pipeline applies a series of hard astrophysical filters and machine learning models to surface a curated set of high-confidence transit candidates — currently **63 prime targets** analyzed from a single TESS sector — which are then explored through an interactive web dashboard.
 
-### Phase 3: CNN Classification & Candidate Scoring
-1. **1D Convolutional Neural Network (`src/transit_cnn.py`)**: 
-   * Self-contained deep learning model trained on synthetic transit data generated on-the-fly via a parameterised trapezoid-transit injector.
-   * Model architecture contains three 1D convolutional layers, batch normalization, GELU activations, global average pooling, and a fully connected classification head.
-   * Training generates weights saved to `data/models/transit_cnn_weights.pt`.
-2. **Candidate Scoring (`src/score_candidates.py`)**:
-   * Folds each star's light curve on the BLS period and resamples it to a uniform 201-point phase grid.
-   * Passes the folded light curve to the trained CNN to compute a transit probability score $P_{\text{transit}} \in [0, 1]$.
-   * Computes the empirical transit signal-to-noise ratio ($SNR = \frac{\delta}{\sigma_{NMAD}} \times \sqrt{N_{\text{in-transit}}}$).
-   * Identifies candidate planets based on threshold filters (typically $P_{\text{transit}} > 0.70$ and $SNR > 7.0$). Logs findings in `data/results/stage2_candidates.csv`.
+The goal is not just detection, but **interpretability**: every prediction is accompanied by the physical reasoning behind it, so researchers can trust and verify what the model finds.
 
 ---
 
-## 📈 Summary of Changes Done Till Now
+## ✨ Key Features
 
-The repository has been updated with the following developments:
-1. **Target Catalog Pipeline (Phase 1)**: Integrated raw MAST downloader, cleaning pipelines, Ridge-regression-based temperature imputation, target selection, and an exploratory charting suite.
-2. **Nesting Directory Restructure**: Flattened the repository structure by moving all directories out of the nested `tess_pipeline` directory to the repository root to optimize script execution and imports.
-3. **Stitching & Detrending (Phase 2)**: Added modules to stitch TESS sectors and detrend long-term rotational or instrumental signals using Savitzky-Golay filter.
-4. **BLS Transit Search (Phase 3)**: Implemented Box Least Squares periodogram pipeline to locate transit parameters (period, depth, duration, epoch).
-5. **1D CNN Classifier (Phase 4)**: Developed a 1D Convolutional Neural Network with synthetic trapezoid injectors to evaluate transit curves, producing model configs, training curves, ROC plots, and binary weights.
-6. **Unified Scoring Pipeline (Phase 5)**: Constructed the candidate evaluator which computes empirical SNRs and combines them with CNN probability rankings to output candidates.
-7. **Pipeline Verification**: Added automated smoke tests (`src/_test_*.py`) to ensure robustness of light curve detrending, BLS search, and CNN scoring modules.
+- ✅ **Transparent Detection** — Interpretable AI with class-level reasoning, not a black box
+- ✅ **Prioritized Analysis** — Confidence-scored candidate ranking for efficient follow-up
+- ✅ **Habitability Indicators** — Derived parameter-based habitable zone assessment
+- ✅ **Interactive Sky Visualization** — Real celestial sky map with classified targets plotted by true coordinates
+- ✅ **Automated Reporting** — One-click scientific detection & analysis report generation
+- ✅ **AI Chat Assistant** — Natural language Q&A on transit parameters and detections
+- ✅ **Mission Control Dashboard** — Live pipeline stats, activity log, and priority queue
 
 ---
 
-## 🚀 How to Run
+## 🛰 Pipeline Architecture
 
-### Setup:
-Install all required python packages:
-```bash
-pip install -r requirements.txt
+```text
+TIC CATALOG (~19,00,000 stars)
+        │
+        ▼
+┌──────────────────────────────────────────┐
+│ STAGE 1 — HARD FILTERS                    │
+│ lumclass == DWARF, wdflag != 1,           │
+│ Tmag < 13, logg > 4.0, disposition clean  │
+│ → OUTPUT: ~1,100 prime targets            │
+└──────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────┐
+│ STAGE 2 — TRANSIT DETECTION               │
+│ Box Least Squares (BLS) / TLS             │
+│ → period, depth, duration, mid-time       │
+└──────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────┐
+│ STAGE 3 — PARAMETER ESTIMATION            │
+│ R_planet, orbital distance (Kepler's 3rd),│
+│ density consistency, SNR, HZ check        │
+└──────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────┐
+│ STAGE 4 — FALSE POSITIVE CLASSIFICATION   │
+│ 1D CNN + tabular ML (RF / XGBoost)        │
+│ Tests: blend ratio, density, eclipse      │
+│ shape, secondary eclipse, odd-even depth  │
+│ → [Planet, EB, Blend, Noise, FP]          │
+└──────────────────────────────────────────┘
+        │
+        ▼
+   63 Classified Targets → Dashboard
 ```
 
-### Run Tests:
-To verify the pipelines are running correctly, run the automated smoke tests:
-```bash
-python src/_test_clean_lc.py
-python src/_test_run_bls.py
-python src/_test_score_candidates.py
-```
+---
 
-### Execute the Pipeline:
-1. **Download Target Catalog**:
-   ```bash
-   python -c "from src.config import CFG; from src.download import download_tic_catalog; download_tic_catalog(CFG)"
-   ```
-2. **Clean & Impute Catalog**:
-   ```bash
-   python -m src.clean
-   ```
-3. **Generate Catalog EDA Plots**:
-   ```bash
-   python -m src.eda_catalog
-   ```
-4. **Export Target Candidates List**:
-   ```bash
-   python -m src.export_targets
-   ```
-5. **Download Cadence Light Curves**:
-   ```bash
-   python -m src.fetch_lightcurves --n 20
-   ```
-6. **Detrend Light Curves**:
-   ```bash
-   python -m src.clean_lightcurves
-   ```
-7. **Perform BLS Transit Search**:
-   ```bash
-   python -m src.run_bls
-   ```
-8. **Plot Phase Folds**:
-   ```bash
-   python -m src.plot_phase_folds
-   ```
-9. **Train Transit CNN**:
-   ```bash
-   python -m src.transit_cnn --epochs 30
-   ```
-10. **Classify and Score Candidates**:
-    ```bash
-    python -m src.score_candidates
-    ```
+## 🧠 Detection & Classification
+
+| Stage | Method | Purpose |
+|---|---|---|
+| Signal search | BLS / TLS | Find periodic transit-like dips |
+| Classification | 1D CNN | Learn transit shape directly from folded light curve |
+| Vetting | Random Forest / XGBoost | Tabular false-positive checks (blend, density, eclipse tests) |
+| Output | Ensemble confidence | Final probability across Planet / EB / Blend / Noise classes |
+
+Each detection includes a **"Why this classification?"** breakdown showing which of the five vetting tests passed or failed, so results are explainable rather than opaque.
+
+---
+
+## 🌍 Dashboard
+
+Built as a standalone React + TypeScript single-page app:
+
+- **Light Curve Viewer** — fetch and visualize TESS photometry per TIC ID, run on-demand detection
+- **Southern Sky Map** — real celestial imagery with classified targets plotted at true RA/Dec, zoom/pan, classification filters
+- **Priority Queue** — all targets ranked by detection confidence
+- **Summary Reports** — auto-generated scientific writeups per target, exportable as PDF
+- **AI Chat Assistant** — ask natural-language questions about any target's parameters or classification
+
+---
+
+## 🛠 Tech Stack
+
+**Pipeline / ML**
+🐍 Python · PyTorch · scikit-learn · XGBoost · Astropy · Astroquery · Lightkurve · `batman` (transit modeling) · NumPy · Pandas
+
+**Dashboard**
+⚛ React · TypeScript · Vite · Tailwind CSS · shadcn/ui · Recharts · Framer Motion
+
+**Data & APIs**
+☁ NASA MAST (TESS light curves) · TIC Catalog · AstronomyAPI (sky chart rendering)
+
+---
+
+## 📊 Current Scope
+
+- Catalog analyzed: **~19,00,000 TIC stars** (Stage 1 EDA)
+- Prime targets after filtering: **~1,100**
+- Targets with full light curve analysis: **63** (single TESS sector, 120s SPOC cadence)
+- Classifier: 1D CNN v1.0 + tabular ensemble vetting
+
+> This is a hackathon proof-of-concept run on real TESS data for a curated target set. Full-catalog automation and multi-sector analysis are the next planned phase.
+
+---
+
+## 🔭 Roadmap
+
+- [ ] Multi-sector light curve aggregation
+- [ ] Automated end-to-end pipeline (catalog → detection → dashboard, no manual steps)
+- [ ] Expand classifier ensemble (CNN + tabular stacking)
+- [ ] Cross-validated accuracy benchmarking on confirmed TESS Objects of Interest (TOIs)
+- [ ] Live light curve ingestion for arbitrary TIC IDs
+
+---
+
+## 👥 Team
+
+*Add team member names and roles here.*
+
+---
+
+<p align="center">Built with 🔭 for ISRO Bharatiya Antariksh Hackathon 2026</p>
