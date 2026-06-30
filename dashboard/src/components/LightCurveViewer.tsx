@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -19,7 +19,11 @@ import {
   Compass,
   Globe,
   Sun,
-  FileText
+  FileText,
+  MessageSquare,
+  X,
+  Send,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -119,6 +123,104 @@ export function generateSummary(data: DetectionResult, ticId: string): string {
 
   // Stellar Blend or other
   return `Photometric analysis of TIC ${ticId} indicates a periodic signal with a period of ${period.toFixed(4)} days, transit duration of ${duration.toFixed(2)} hours, and depth of ${depthPercent}% (${depthPpm} ppm), classified as a background stellar blend with a confidence of ${confPercent}%. The observed SNR is ${snr.toFixed(1)}, located at a distance of ${distance.toFixed(1)} light-years. The signal is likely contaminated by background eclipsing binaries (BEB) or stellar blends within the pixel aperture and is screened out of the exoplanetary catalog.`;
+}
+
+// Basic markdown parser
+export function renderMessageContent(text: string): React.ReactNode[] {
+  return text.split('\n').map((line, i) => {
+    const boldRegex = /\*\*(.*?)\*\*/g;
+    let match;
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+    
+    while ((match = boldRegex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        elements.push(line.substring(lastIndex, match.index));
+      }
+      elements.push(<strong key={match.index} className="text-white font-semibold">{match[1]}</strong>);
+      lastIndex = boldRegex.lastIndex;
+    }
+    if (lastIndex < line.length) {
+      elements.push(line.substring(lastIndex));
+    }
+    
+    if (line.trim().startsWith('* ')) {
+      return (
+        <li key={i} className="list-disc ml-4 my-1 pl-1 text-slate-300">
+          {elements.length > 0 ? elements : line.substring(2)}
+        </li>
+      );
+    }
+    
+    return (
+      <p key={i} className="mb-2 last:mb-0">
+        {elements.length > 0 ? elements : line}
+      </p>
+    );
+  });
+}
+
+// AI Chat mock query responder stub
+export function askAboutStar(data: DetectionResult | null, question: string, ticId: string): Promise<string> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (!data) {
+        resolve("Please run the 'Detect Signal' pipeline first so I can analyze this star's transit telemetry.");
+        return;
+      }
+
+      const q = question.toLowerCase();
+      
+      if (q.includes('habitable') || q.includes('life') || q.includes('hz') || q.includes('liquid')) {
+        if (data.inHabitableZone) {
+          resolve(`Yes, **TIC ${ticId}** is a highly exciting target! The candidate planet (${data.event}) has an estimated radius of **${data.rPlanet.toFixed(2)} R⊕**, placing it in the **${data.planetType}** regime. 
+
+Most importantly, our classification model determines that its orbit **lies within the habitable zone**. Here are key habitability metrics:
+* **Stellar Irradiance Level**: Favorable for liquid surface water templates.
+* **Planet Class**: ${data.planetType} (likely rocky cores or gas-dwarf envelopes).
+* **SNR**: **${data.snr.toFixed(1)}** (high signal quality for follow-up studies).`);
+        } else {
+          resolve(`No, the candidate planet **${data.event}** around **TIC ${ticId}** is estimated to orbit **outside the habitable zone** of its host star. 
+
+Given its short orbital period of **${data.period.toFixed(2)} days** and its size (**${data.rPlanet.toFixed(2)} R⊕**), it likely experiences high surface irradiance, placing it in the hot regime (e.g. **${data.planetType}**). It is a valuable target for transit timing variations but not for biosignature detection.`);
+        }
+      } else if (q.includes('period') || q.includes('orbit') || q.includes('year') || q.includes('days')) {
+        resolve(`The resolved orbital period for **TIC ${ticId}** is **${data.period.toFixed(4)} days** (${(data.period * 24).toFixed(1)} hours). 
+
+This is calculated from the periodic dips in the SPOC light curve. The transit itself lasts for approximately **${data.duration.toFixed(2)} hours** each orbit.`);
+      } else if (q.includes('size') || q.includes('radius') || q.includes('mass') || q.includes('earth')) {
+        if (data.classification === 'Exoplanet') {
+          resolve(`The estimated physical radius of this exoplanet candidate is **${data.rPlanet.toFixed(2)} Earth radii (R⊕)**. 
+
+This size is derived from the observed transit depth of **${(data.depth * 100).toFixed(4)}%** (${(data.depth * 1e6).toFixed(0)} ppm) relative to the host star's radius. A depth of this size suggests a **${data.planetType}** classification.`);
+        } else {
+          resolve(`This target is classified as a **${data.classification}** with **${(data.confidence * 100).toFixed(1)}%** confidence. 
+
+Because it is not classified as a planetary candidate (its deep eclipse depth of **${(data.depth * 100).toFixed(2)}%** indicates stellar occultation), we do not report a planetary radius.`);
+        }
+      } else if (q.includes('snr') || q.includes('noise') || q.includes('quality')) {
+        resolve(`The transit signal for **TIC ${ticId}** exhibits a Signal-to-Noise Ratio (SNR) of **${data.snr.toFixed(1)}**. 
+
+Signals with an SNR above **7.0** are generally considered statistically significant. An SNR of **${data.snr.toFixed(1)}** indicates a highly robust detection, suggesting low instrumental noise during the transit windows.`);
+      } else if (q.includes('distance') || q.includes('light-year') || q.includes('where') || q.includes('age')) {
+        resolve(`The host star is located at a distance of **${data.distance.toFixed(1)} light-years** from Earth in the TESS Southern Sky Field. 
+
+The star's estimated age is **${data.stellarAge.toFixed(1)} billion years (Gyr)**. This is key context for understanding the evolutionary history and potential stability of any orbiting bodies.`);
+      } else {
+        // Default generic response
+        resolve(`Hello! I'm analyzing the telemetry for **TIC ${ticId}** (classification: **${data.classification}**, confidence: **${(data.confidence * 100).toFixed(1)}%**).
+
+Here is a quick scientific log:
+* **Object Name**: ${data.event}
+* **Orbital Period**: ${data.period.toFixed(4)} days
+* **Transit Depth**: ${(data.depth * 100).toFixed(4)}%
+* **Planet Type**: ${data.planetType}
+* **Habitability**: ${data.inHabitableZone ? "In Habitable Zone (YES)" : "Outside Habitable Zone (NO)"}
+
+Ask me specific questions about its **habitability**, **size/radius**, **orbital period**, or **distance**!`);
+      }
+    }, 1000);
+  });
 }
 
 // Mock/stub function for signal detection
@@ -270,6 +372,13 @@ export function LightCurveViewer({
   const [reportText, setReportText] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
+  // AI Chat Panel States
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
+  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'assistant', text: string }[]>([]);
+  const [chatInput, setChatInput] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   // Load available TIC IDs on mount
   useEffect(() => {
     fetch('/api/tic-ids')
@@ -384,6 +493,45 @@ export function LightCurveViewer({
       setDetecting(false);
     }
   };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || aiLoading) return;
+
+    const userQ = chatInput.trim();
+    setChatMessages(prev => [...prev, { sender: 'user', text: userQ }]);
+    setChatInput('');
+    setAiLoading(true);
+
+    try {
+      const response = await askAboutStar(detectionResult, userQ, activeTicId);
+      setChatMessages(prev => [...prev, { sender: 'assistant', text: response }]);
+    } catch (err) {
+      console.error("AI chat failed:", err);
+      setChatMessages(prev => [...prev, { sender: 'assistant', text: "Error: Failed to process query. Please retry." }]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Reset chat messages when star target changes
+  useEffect(() => {
+    setChatMessages([
+      { 
+        sender: 'assistant', 
+        text: `Hello! I am your TESS Copilot. I have loaded the telemetry for **TIC ${activeTicId || 'N/A'}**. 
+
+You can ask me questions about its **habitability**, **orbital period**, **estimated planet size**, or **stellar host age**.` 
+      }
+    ]);
+  }, [activeTicId]);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, aiLoading]);
 
   const handleGenerateReport = () => {
     if (!detectionResult) return;
@@ -979,6 +1127,104 @@ export function LightCurveViewer({
           </CardContent>
         </Card>
       )}
+
+      {/* Floating AI Chat Trigger Button */}
+      <button 
+        onClick={() => setIsAiPanelOpen(true)}
+        className="fixed bottom-6 right-6 p-4 rounded-full bg-indigo-650 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-500/25 z-40 transition-all active:scale-95 flex items-center gap-2 group border border-indigo-400/20"
+      >
+        <MessageSquare className="h-5 w-5 text-white" />
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-out text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+          Ask Copilot
+        </span>
+      </button>
+
+      {/* Collapsible Slide-in AI Sidebar */}
+      <div className={`fixed inset-y-0 right-0 w-80 sm:w-96 bg-[#090d1a] border-l border-slate-800/80 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out transform ${
+        isAiPanelOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-slate-850 bg-[#070a14] flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-indigo-500/10 rounded-md border border-indigo-500/20">
+              <Sparkles className="h-4 w-4 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">AI Signal Copilot</h3>
+              <p className="text-[9px] text-slate-500 font-mono">Target: TIC {activeTicId}</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setIsAiPanelOpen(false)}
+            className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <X className="h-4.5 w-4.5" />
+          </button>
+        </div>
+
+        {/* Sidebar Messages Area */}
+        <div className="flex-grow p-4 overflow-y-auto space-y-4 scrollbar">
+          {chatMessages.map((msg, idx) => (
+            <div 
+              key={idx} 
+              className={`flex flex-col max-w-[85%] ${
+                msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
+              }`}
+            >
+              <div 
+                className={`p-3 rounded-xl text-xs leading-relaxed ${
+                  msg.sender === 'user' 
+                    ? 'bg-indigo-600 text-white rounded-tr-none' 
+                    : 'bg-[#0f172a] border border-slate-850 text-slate-300 rounded-tl-none'
+                }`}
+              >
+                {msg.sender === 'user' ? msg.text : renderMessageContent(msg.text)}
+              </div>
+              <span className="text-[9px] text-slate-600 mt-1 uppercase tracking-wider font-semibold font-mono">
+                {msg.sender === 'user' ? 'Scientist' : 'Copilot'}
+              </span>
+            </div>
+          ))}
+
+          {/* AI Typings loader */}
+          {aiLoading && (
+            <div className="flex flex-col max-w-[85%] mr-auto items-start">
+              <div className="p-3 bg-[#0f172a] border border-slate-850 rounded-xl rounded-tl-none flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" />
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-100" />
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-200" />
+              </div>
+              <span className="text-[9px] text-slate-600 mt-1 uppercase tracking-wider font-semibold font-mono">Copilot</span>
+            </div>
+          )}
+
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Sidebar Input Form */}
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-850 bg-[#070a14] space-y-2">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder={detectionResult ? "Ask about period, size, HZ status..." : "Run detection first..."}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={aiLoading}
+              className="bg-[#020617] border-slate-700 text-xs h-9 focus:ring-indigo-500"
+            />
+            <Button 
+              type="submit" 
+              disabled={aiLoading || !chatInput.trim()}
+              className="h-9 px-3 bg-indigo-600 hover:bg-indigo-500 text-white shrink-0"
+            >
+              <Send className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <p className="text-[9px] text-slate-600 text-center font-mono">
+            Analyzes active target photometry and parameters.
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
