@@ -56,6 +56,11 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [scaleBySize, setScaleBySize] = useState<boolean>(false);
   const [selectedPopoverStar, setSelectedPopoverStar] = useState<SkyStar | null>(null);
 
+  // Center coordinate state & zoom level (1 = widest to 6 = narrowest, default 4 for closer look)
+  const [centerRa, setCenterRa] = useState<number>(0);
+  const [centerDec, setCenterDec] = useState<number>(-87);
+  const [zoom, setZoom] = useState<number>(4);
+
   // AstronomyAPI sky map background
   const [mapBgUrl, setMapBgUrl] = useState<string | null>(null);
   const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'online' | 'error'>('idle');
@@ -110,57 +115,111 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     setFilteredStars(result);
   }, [searchQuery, typeFilter, stars]);
 
-  // Zoom functions
-  const handleZoomIn = () => {
-    const raCenter = (raDomain[0] + raDomain[1]) / 2;
-    const raSpan = (raDomain[1] - raDomain[0]) / 4;
-    
-    const decCenter = (decDomain[0] + decDomain[1]) / 2;
-    const decSpan = (decDomain[1] - decDomain[0]) / 4;
+  // FOV mapping in degrees corresponding to each AstronomyAPI zoom level (1 to 6)
+  const zoomLevels: Record<number, { fov: number }> = {
+    1: { fov: 40 },
+    2: { fov: 20 },
+    3: { fov: 10 },
+    4: { fov: 5 },
+    5: { fov: 2.5 },
+    6: { fov: 1.25 }
+  };
 
-    setRaDomain([raCenter - raSpan, raCenter + raSpan]);
-    setDecDomain([decCenter - decSpan, decCenter + decSpan]);
+  // Recalculate X (RA) and Y (Dec) domains of Recharts to align precisely with the AstronomyAPI field boundaries
+  useEffect(() => {
+    const level = zoomLevels[zoom] || zoomLevels[4];
+    const fov = level.fov;
+
+    // Declination (Dec) bounds
+    const halfDec = fov / 2;
+    let minDec = centerDec - halfDec;
+    let maxDec = centerDec + halfDec;
+    
+    // Clamp to valid Dec bounds (-90 to -80 degrees)
+    if (minDec < -90) {
+      minDec = -90;
+      maxDec = -90 + fov;
+    }
+    if (maxDec > -80) {
+      maxDec = -80;
+      minDec = -80 - fov;
+    }
+    setDecDomain([minDec, maxDec]);
+
+    // Right Ascension (RA) bounds
+    // cos(dec) factors in the convergence of RA lines near the celestial pole
+    const cosDec = Math.cos((centerDec * Math.PI) / 180);
+    const raSpan = Math.min(360, fov / (cosDec > 0.01 ? cosDec : 0.01));
+    const halfRa = raSpan / 2;
+    let minRa = centerRa - halfRa;
+    let maxRa = centerRa + halfRa;
+
+    if (minRa < 0) {
+      minRa = 0;
+      maxRa = raSpan;
+    }
+    if (maxRa > 360) {
+      maxRa = 360;
+      minRa = 360 - raSpan;
+    }
+    setRaDomain([minRa, maxRa]);
+  }, [centerRa, centerDec, zoom]);
+
+  // Debounced AstronomyAPI fetch (400ms) to update the background image when coordinates or zoom factors change
+  useEffect(() => {
+    setMapStatus('loading');
+    const timer = setTimeout(() => {
+      fetchMapChartImage(centerRa, centerDec, zoom).then(url => {
+        if (url) {
+          setMapBgUrl(url);
+          setMapStatus('online');
+        } else {
+          setMapStatus('error');
+        }
+      });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [centerRa, centerDec, zoom]);
+
+  // Align map center to highlighted search targets or manually navigated stars
+  useEffect(() => {
+    if (selectedPopoverStar) {
+      setCenterRa(selectedPopoverStar.ra);
+      setCenterDec(selectedPopoverStar.dec);
+    }
+  }, [selectedPopoverStar]);
+
+  // Zoom handlers
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(6, prev + 1));
   };
 
   const handleZoomOut = () => {
-    const raCenter = (raDomain[0] + raDomain[1]) / 2;
-    const raSpan = raDomain[1] - raDomain[0];
-    
-    const decCenter = (decDomain[0] + decDomain[1]) / 2;
-    const decSpan = decDomain[1] - decDomain[0];
-
-    const newRaMin = Math.max(0, raCenter - raSpan);
-    const newRaMax = Math.min(360, raCenter + raSpan);
-    const newDecMin = Math.max(-90, decCenter - decSpan);
-    const newDecMax = Math.min(-80, decCenter + decSpan);
-
-    setRaDomain([newRaMin, newRaMax]);
-    setDecDomain([newDecMin, newDecMax]);
+    setZoom(prev => Math.max(1, prev - 1));
   };
 
   const handleResetZoom = () => {
-    setRaDomain([0, 360]);
-    setDecDomain([-90, -80]);
+    setZoom(4);
+    setCenterRa(0);
+    setCenterDec(-87);
   };
 
-  // Pan functions
+  // Pan handlers — pan shifts the center coordinate by 25% of the visible FOV range
   const handlePan = (direction: 'up' | 'down' | 'left' | 'right') => {
-    const raSpan = raDomain[1] - raDomain[0];
-    const decSpan = decDomain[1] - decDomain[0];
-    const shiftRatio = 0.25;
+    const level = zoomLevels[zoom] || zoomLevels[4];
+    const fov = level.fov;
+    const cosDec = Math.cos((centerDec * Math.PI) / 180);
+    const raSpan = Math.min(360, fov / (cosDec > 0.01 ? cosDec : 0.01));
 
     if (direction === 'left') {
-      const shift = raSpan * shiftRatio;
-      setRaDomain([Math.max(0, raDomain[0] - shift), Math.max(raSpan, raDomain[1] - shift)]);
+      setCenterRa(prev => Math.max(0, prev - raSpan * 0.25));
     } else if (direction === 'right') {
-      const shift = raSpan * shiftRatio;
-      setRaDomain([Math.min(360 - raSpan, raDomain[0] + shift), Math.min(360, raDomain[1] + shift)]);
+      setCenterRa(prev => Math.min(360, prev + raSpan * 0.25));
     } else if (direction === 'down') {
-      const shift = decSpan * shiftRatio;
-      setDecDomain([Math.max(-90, decDomain[0] - shift), Math.max(-90 + decSpan, decDomain[1] - shift)]);
+      setCenterDec(prev => Math.max(-90, prev - fov * 0.25));
     } else if (direction === 'up') {
-      const shift = decSpan * shiftRatio;
-      setDecDomain([Math.min(-80 - decSpan, decDomain[0] + shift), Math.min(-80, decDomain[1] + shift)]);
+      setCenterDec(prev => Math.min(-80, prev + fov * 0.25));
     }
   };
 
@@ -170,19 +229,6 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
       onSelectStar(selectedPopoverStar.id);
     }
   };
-
-  // Fetch AstronomyAPI background once on mount — centered on southern polar region
-  useEffect(() => {
-    setMapStatus('loading');
-    fetchMapChartImage(0, -87, 1).then(url => {
-      if (url) {
-        setMapBgUrl(url);
-        setMapStatus('online');
-      } else {
-        setMapStatus('error');
-      }
-    });
-  }, []);
 
   // Custom Dot shape mapping highlight opacity and toggled confidence scale sizes
   const renderCustomDot = (props: any) => {
@@ -425,9 +471,17 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                     backgroundImage: `url('${mapBgUrl}')`,
                     backgroundSize: 'cover',
                     backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center'
+                    backgroundPosition: 'center',
+                    transition: 'background-image 0.5s ease-in-out'
                   } : {}}
                 >
+                  {/* Loading spinner overlay */}
+                  {mapStatus === 'loading' && (
+                    <div className="absolute inset-0 bg-[#020617]/70 backdrop-blur-xs flex flex-col items-center justify-center z-20 pointer-events-none transition-all duration-350">
+                      <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mb-2" />
+                      <span className="text-xs text-indigo-300 font-mono tracking-wider">Syncing Starfield...</span>
+                    </div>
+                  )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart
                       margin={{ top: 20, right: 20, bottom: 20, left: 20 }}

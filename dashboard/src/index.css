@@ -86,7 +86,7 @@
   html {
     @apply font-sans;
     scrollbar-width: thin;
-    scrollbar-color: rgba(99, 102, 241, 0.3) rgba(3, 7, 18, 0.5);
+    scrollbar-color: rgba(var(--accent-color), 0.3) rgba(3, 7, 18, 0.5);
   }
 }
 
@@ -145,4 +145,61 @@
 
 .pulsar {
   animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* ---------------------------------------------------------
+   DARK/THEME ACCENT SWITCHER CONFIGURATION (Feature 4 Base)
+   --------------------------------------------------------- */
+:root {
+  --accent-color: 99, 102, 241; /* indigo-500 rgb values */
+  --accent-glow: 139, 92, 246;  /* purple-500 rgb values */
+  --accent-cyan: 6, 182, 212;   /* cyan-500 rgb values */
+}
+
+/* Alternate theme overrides */
+.theme-aurora {
+  --accent-color: 16, 185, 129; /* emerald-500 rgb values */
+  --accent-glow: 245, 158, 11;  /* amber-500 rgb values */
+  --accent-cyan: 234, 179, 8;   /* yellow-500 rgb values */
+}
+
+/* Generic utility overrides to dynamically mirror theme toggles */
+.text-accent {
+  color: rgb(var(--accent-color)) !important;
+}
+.text-accent-glow {
+  color: rgb(var(--accent-glow)) !important;
+}
+.border-accent {
+  border-color: rgba(var(--accent-color), 0.8) !important;
+}
+.border-accent-light {
+  border-color: rgba(var(--accent-color), 0.2) !important;
+}
+.bg-accent-light {
+  background-color: rgba(var(--accent-color), 0.08) !important;
+}
+.bg-accent-light-hover:hover {
+  background-color: rgba(var(--accent-color), 0.12) !important;
+}
+.accent-accent-color {
+  accent-color: rgb(var(--accent-color)) !important;
+}
+.glow-accent-purple {
+  box-shadow: 0 0 25px rgba(var(--accent-glow), 0.2) !important;
+}
+.glow-accent-cyan {
+  box-shadow: 0 0 20px rgba(var(--accent-cyan), 0.15) !important;
+}
+.glow-text-accent-cyan {
+  text-shadow: 0 0 8px rgba(var(--accent-cyan), 0.5) !important;
+}
+.glow-text-accent-purple {
+  text-shadow: 0 0 10px rgba(var(--accent-glow), 0.6) !important;
+}
+.accent-gradient-text {
+  background-image: linear-gradient(to right, rgb(var(--accent-color)), rgb(var(--accent-glow)), rgb(var(--accent-cyan))) !important;
+}
+.scrollbar-accent {
+  scrollbar-color: rgba(var(--accent-color), 0.3) rgba(3, 7, 18, 0.5) !important;
 }
