@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   ResponsiveContainer, 
   ScatterChart, 
@@ -169,6 +169,10 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   // Map fetch retry counter — incrementing it re-triggers the effect
   const [mapRetryCount, setMapRetryCount] = useState<number>(0);
 
+  // Ref for smooth-scrolling the sidebar to the selected star
+  const selectedItemRef = useRef<HTMLDivElement | null>(null);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+
   // Debounced AstronomyAPI fetch (400ms) with an 8-second hard timeout
   // so a slow or hung API call never keeps the panel in a loading state indefinitely.
   useEffect(() => {
@@ -212,6 +216,10 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     if (selectedPopoverStar) {
       setCenterRa(selectedPopoverStar.ra);
       setCenterDec(selectedPopoverStar.dec);
+      // Smooth-scroll sidebar to the selected item
+      if (selectedItemRef.current && listContainerRef.current) {
+        selectedItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
   }, [selectedPopoverStar]);
 
@@ -459,9 +467,34 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               </div>
             )}
             {loading ? (
-              <div className="text-center py-24 space-y-4 my-auto">
-                <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mx-auto" />
-                <p className="text-xs text-slate-500">Mapping celestial target catalog...</p>
+              // Scatter-plot skeleton — dots at varied positions + shimmer overlay
+              <div className="h-[400px] w-full mt-2 bg-[#060c1a]/60 rounded-md border border-slate-800/30 relative overflow-hidden">
+                {/* Shimmer sweep */}
+                <div className="absolute inset-0 skeleton opacity-50" />
+                {/* Fake scatter dots — mimic distribution of real chart */}
+                {[
+                  { x: 18, y: 30 }, { x: 32, y: 62 }, { x: 47, y: 44 },
+                  { x: 58, y: 75 }, { x: 71, y: 28 }, { x: 83, y: 55 },
+                  { x: 25, y: 85 }, { x: 65, y: 18 }, { x: 42, y: 58 },
+                  { x: 78, y: 40 }, { x: 52, y: 90 }, { x: 12, y: 50 },
+                  { x: 90, y: 70 }, { x: 36, y: 35 }, { x: 62, y: 82 }
+                ].map((pos, i) => (
+                  <div
+                    key={i}
+                    className="absolute rounded-full bg-indigo-400/20 skeleton"
+                    style={{
+                      left: `${pos.x}%`,
+                      top: `${pos.y}%`,
+                      width: i % 3 === 0 ? '10px' : '7px',
+                      height: i % 3 === 0 ? '10px' : '7px',
+                      transform: 'translate(-50%, -50%)',
+                      animationDelay: `${i * 0.12}s`,
+                    }}
+                  />
+                ))}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Orbit className="h-8 w-8 text-indigo-500/15 animate-spin" style={{ animationDuration: '5s' }} />
+                </div>
               </div>
             ) : (
               <div className="relative w-full flex-1 flex flex-col justify-between select-none">
@@ -555,17 +588,38 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
           </CardContent>
         </Card>
 
-        {/* Left Targets Quick Navigation List (1 col) */}
-        <Card className="bg-[#0f172a]/20 border-slate-850 flex flex-col max-h-[550px]">
-          <CardHeader className="pb-3 border-b border-slate-800/40">
-            <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Star className="h-3.5 w-3.5 text-indigo-400" />
-              Target List ({filteredStars.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 overflow-y-auto flex-1 divide-y divide-slate-900/60 scrollbar">
+          {/* Target list sidebar with scroll shadows */}
+          <Card className="bg-[#0f172a]/20 border-slate-850 flex flex-col max-h-[550px]">
+            <CardHeader className="pb-3 border-b border-slate-800/40">
+              <CardTitle className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 text-indigo-400" />
+                Target List ({filteredStars.length})
+              </CardTitle>
+            </CardHeader>
+            {/* Scroll container with shadow overlays */}
+            <div className="relative flex-1 overflow-hidden">
+              {/* Top shadow — always visible if content overflows */}
+              <div className="scroll-shadow-top absolute top-0 left-0 right-0 h-5 z-10 pointer-events-none" />
+              <div
+                ref={listContainerRef}
+                className="overflow-y-auto h-full divide-y divide-slate-900/60 scrollbar"
+              >
             {loading ? (
-              <div className="p-6 text-center text-xs text-slate-600">Loading...</div>
+              // Sidebar skeleton placeholders
+              <div className="divide-y divide-slate-900/40">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="p-3.5 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="h-3.5 w-24 rounded skeleton" style={{ animationDelay: `${i * 0.1}s` }} />
+                      <div className="h-4 w-16 rounded-full skeleton" style={{ animationDelay: `${i * 0.1 + 0.05}s` }} />
+                    </div>
+                    <div className="flex justify-between">
+                      <div className="h-2.5 w-16 rounded skeleton" style={{ animationDelay: `${i * 0.1 + 0.1}s` }} />
+                      <div className="h-2.5 w-16 rounded skeleton" style={{ animationDelay: `${i * 0.1 + 0.15}s` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : starLoadError ? (
               <div className="p-5 space-y-2 text-center">
                 <AlertTriangle className="h-6 w-6 text-rose-400/60 mx-auto" />
@@ -586,33 +640,40 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                 )}
               </div>
             ) : (
-              filteredStars.map(star => (
-                <div 
-                  key={star.id} 
-                  className={`p-3.5 cursor-pointer flex flex-col gap-1.5 transition-all group ${
-                    selectedPopoverStar && selectedPopoverStar.id === star.id 
-                      ? 'bg-indigo-950/15 border-l-2 border-indigo-500' 
-                      : 'hover:bg-[#0f172a]/40 active:bg-[#0f172a]/60'
-                  }`}
-                  onClick={() => setSelectedPopoverStar(star)}
-                >
-                  <div className="flex justify-between items-center">
-                    <strong className="text-xs text-slate-200 font-mono group-hover:text-indigo-400 transition-colors">
-                      TIC {star.id}
-                    </strong>
-                    <Badge variant="outline" className={`text-[9px] font-medium px-1.5 py-0.25 ${badgeColors[star.classification]}`}>
-                      {star.classification}
-                    </Badge>
+              filteredStars.map(star => {
+                const isSelected = selectedPopoverStar && selectedPopoverStar.id === star.id;
+                return (
+                  <div
+                    key={star.id}
+                    ref={isSelected ? selectedItemRef : null}
+                    className={`p-3.5 cursor-pointer flex flex-col gap-1.5 transition-colors duration-150 group ${
+                      isSelected
+                        ? 'bg-indigo-950/15 border-l-2 border-indigo-500'
+                        : 'hover:bg-[#0f172a]/40 active:bg-[#0f172a]/60'
+                    }`}
+                    onClick={() => setSelectedPopoverStar(star)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <strong className="text-xs text-slate-200 font-mono group-hover:text-indigo-400 transition-colors duration-150">
+                        TIC {star.id}
+                      </strong>
+                      <Badge variant="outline" className={`text-[9px] font-medium px-1.5 py-0.25 ${badgeColors[star.classification]}`}>
+                        {star.classification}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                      <span>RA: {star.ra.toFixed(1)}°</span>
+                      <span>Dec: {star.dec.toFixed(1)}°</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                    <span>RA: {star.ra.toFixed(1)}°</span>
-                    <span>Dec: {star.dec.toFixed(1)}°</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
-          </CardContent>
-        </Card>
+              </div>
+              {/* Bottom shadow */}
+              <div className="scroll-shadow-bottom absolute bottom-0 left-0 right-0 h-5 z-10 pointer-events-none" />
+            </div>
+          </Card>
       </div>
 
       {/* Map Legend card */}
