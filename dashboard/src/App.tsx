@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
 import { PriorityQueue } from './components/PriorityQueue';
@@ -16,8 +16,86 @@ import {
   HelpCircle,
   Clock,
   TrendingUp,
-  X
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
+
+// =================================================================
+// GLOBAL TOAST SYSTEM
+// =================================================================
+export interface Toast {
+  id: string;
+  message: string;
+  variant: 'success' | 'error' | 'info';
+}
+
+interface ToastContextValue {
+  addToast: (message: string, variant?: Toast['variant'], duration?: number) => void;
+}
+
+export const ToastContext = createContext<ToastContextValue>({
+  addToast: () => {},
+});
+
+export function useToast() {
+  return useContext(ToastContext);
+}
+
+function ToastStack() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+    const t = timersRef.current.get(id);
+    if (t) { clearTimeout(t); timersRef.current.delete(id); }
+  }, []);
+
+  const addToast = useCallback((message: string, variant: Toast['variant'] = 'success', duration = 3000) => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    setToasts(prev => [...prev.slice(-4), { id, message, variant }]);
+    const timer = setTimeout(() => removeToast(id), duration);
+    timersRef.current.set(id, timer);
+  }, [removeToast]);
+
+  const icons = {
+    success: <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />,
+    error:   <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />,
+    info:    <Info className="h-4 w-4 text-indigo-400 shrink-0" />,
+  };
+
+  const borders = {
+    success: 'border-emerald-500/25',
+    error:   'border-rose-500/25',
+    info:    'border-indigo-500/25',
+  };
+
+  return (
+    <ToastContext.Provider value={{ addToast }}>
+      <div className="fixed bottom-6 right-6 z-[1000] flex flex-col gap-2 items-end pointer-events-none">
+        {toasts.map(t => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border ${
+              borders[t.variant]
+            } bg-[#0b0f1e]/95 backdrop-blur-md shadow-2xl text-xs text-slate-200 max-w-xs w-full animate-in slide-in-from-right-4 fade-in duration-300`}
+          >
+            {icons[t.variant]}
+            <span className="flex-1 leading-snug">{t.message}</span>
+            <button
+              onClick={() => removeToast(t.id)}
+              className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer ml-1 shrink-0"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
 
 // =================================================================
 // FEATURE 2 STUB: getRecentActivity()
@@ -173,6 +251,7 @@ function App() {
   };
 
   return (
+    <ToastStack>
     <div className={`min-h-screen bg-[#030712] text-slate-100 font-sans cosmic-grid flex flex-col scrollbar-accent ${accentTheme === 'aurora' ? 'theme-aurora' : ''}`}>
       {/* ---------------------------------------------------------
           Navbar / Header
@@ -355,8 +434,8 @@ function App() {
               </button>
             </div>
 
-            {/* Tab views */}
-            <div className="transition-all duration-300">
+            {/* Tab views — key forces remount on switch, animate-in gives fade+slide */}
+            <div key={activeTab} className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
               {activeTab === 'viewer' ? (
                 <LightCurveViewer 
                   selectedStarId={selectedStarId} 
@@ -503,6 +582,7 @@ function App() {
       )}
 
     </div>
+    </ToastStack>
   );
 }
 
