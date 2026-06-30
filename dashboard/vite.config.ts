@@ -399,7 +399,7 @@ export default defineConfig(({ mode }) => {
                 'Content-Type': 'application/json',
               },
               body: astroBody,
-              signal: AbortSignal.timeout(25_000),
+              signal: AbortSignal.timeout(40_000), // 40-second timeout
             });
 
             // ── Full response log ────────────────────────────────────────

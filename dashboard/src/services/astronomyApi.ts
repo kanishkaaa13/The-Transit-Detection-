@@ -29,7 +29,7 @@ export async function fetchStarChartImage(
     const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=3`;
     const response = await fetch(url, {
       method: 'GET',
-      signal: AbortSignal.timeout(15_000), // 15-second hard timeout
+      signal: AbortSignal.timeout(40_000), // 40-second timeout
     });
 
     if (!response.ok) return null;
@@ -97,7 +97,7 @@ export async function fetchMapChartImage(
     const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=${encodeURIComponent(zoom.toString())}`;
     const response = await fetch(url, {
       method: 'GET',
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(40_000), // 40-second timeout
     });
 
     if (!response.ok) return null;
