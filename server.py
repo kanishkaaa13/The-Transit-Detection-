@@ -1,9 +1,11 @@
 from flask import Flask, jsonify, request, send_from_directory
+from flask_cors import CORS
 import os
 import csv
 from pathlib import Path
 
-app = Flask(__name__, static_folder='dashboard/dist')
+app = Flask(__name__)
+CORS(app)  # Enable CORS for Vercel frontend
 
 # Base directory for data files
 BASE_DIR = Path(__file__).parent
@@ -155,17 +157,20 @@ def sky_snapshot():
     return jsonify({'error': 'not_implemented'}), 501
 
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve_frontend(path):
-    """Serve the static frontend files"""
-    if path == '':
-        path = 'index.html'
-    
-    try:
-        return send_from_directory('dashboard/dist', path)
-    except:
-        return send_from_directory('dashboard/dist', 'index.html')
+@app.route('/')
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'TESS Transit Detection API',
+        'endpoints': [
+            '/api/tic-ids',
+            '/api/sky-map-stars',
+            '/data/lightcurves/<tic_id>.json',
+            '/api/sky-chart',
+            '/api/sky-snapshot'
+        ]
+    })
 
 
 if __name__ == '__main__':
