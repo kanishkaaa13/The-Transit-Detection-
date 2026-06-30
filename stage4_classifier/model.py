@@ -19,6 +19,15 @@ def _feature_matrix_from_records(records):
     return np.array([[record.get(name, 0.0) for name in feature_names] for record in records], dtype=float)
 
 
+def _coerce_feature_vector(features, feature_names=None):
+    """Coerce a feature mapping into a 2D array using the expected feature order."""
+    if isinstance(features, dict):
+        if feature_names is None:
+            feature_names = sorted(features.keys())
+        return np.array([[features.get(name, 0.0) for name in feature_names]], dtype=float)
+    return np.asarray(features, dtype=float).reshape(1, -1)
+
+
 def train_classifier(X, y, model_type="random_forest"):
     """Train a scikit-learn classifier on a feature matrix and label vector."""
     if model_type != "random_forest":
@@ -34,6 +43,7 @@ def train_classifier(X, y, model_type="random_forest"):
 
     model = RandomForestClassifier(random_state=42, n_estimators=100)
     model.fit(X_matrix, y_array)
+    model.feature_names_ = sorted(X[0].keys()) if isinstance(X, (list, tuple)) and X and isinstance(X[0], dict) else None
     return model
 
 
@@ -53,8 +63,10 @@ def load_model(path):
 def predict_proba(model, features: dict) -> dict:
     """Return per-class probabilities for a single feature dictionary."""
     if isinstance(features, dict):
-        feature_names = sorted(features.keys())
-        sample = np.array([[features.get(name, 0.0) for name in feature_names]], dtype=float)
+        feature_names = getattr(model, "feature_names_", None)
+        if feature_names is None:
+            feature_names = sorted(features.keys())
+        sample = _coerce_feature_vector(features, feature_names=feature_names)
     else:
         sample = np.asarray(features, dtype=float).reshape(1, -1)
 

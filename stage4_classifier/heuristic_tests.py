@@ -4,6 +4,8 @@ import numpy as np
 
 
 def _blend_eb(depth, contratio, threshold=0.1):
+    if depth is None or contratio is None:
+        return False, "depth*(1+contratio) below threshold"
     score = depth * (1 + contratio)
     if score > threshold:
         return True, "depth*(1+contratio) exceeds threshold"
@@ -11,6 +13,8 @@ def _blend_eb(depth, contratio, threshold=0.1):
 
 
 def _density_consistency(rho_transit, rho_catalog, tolerance=0.3):
+    if rho_transit is None or rho_catalog is None:
+        return False, "density mismatch within tolerance"
     if rho_catalog == 0:
         return False, "catalog density is zero"
     relative_diff = abs(rho_transit - rho_catalog) / abs(rho_catalog)
@@ -20,6 +24,8 @@ def _density_consistency(rho_transit, rho_catalog, tolerance=0.3):
 
 
 def _radius_eb(r_planet_rjup, threshold=2.0):
+    if r_planet_rjup is None:
+        return False, "radius below EB threshold"
     if r_planet_rjup > threshold:
         return True, "radius exceeds EB threshold"
     return False, "radius below EB threshold"
@@ -44,6 +50,8 @@ def _secondary_eclipse(light_curve, period, t0):
 
 
 def _odd_even_depth(odd_transit_depths, even_transit_depths, tolerance=0.1):
+    if odd_transit_depths is None or even_transit_depths is None:
+        return False, "odd/even depths similar"
     odd_mean = float(np.mean(odd_transit_depths)) if odd_transit_depths else 0.0
     even_mean = float(np.mean(even_transit_depths)) if even_transit_depths else 0.0
     if abs(odd_mean - even_mean) > tolerance:
