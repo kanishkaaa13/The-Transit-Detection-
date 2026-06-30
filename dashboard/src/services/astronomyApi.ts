@@ -11,7 +11,7 @@ const chartCache = new Map<string, string>();
 
 /**
  * Returns a URL to the AstronomyAPI-generated star chart image for the given
- * sky position.  Returns null on any failure (missing creds, rate limit, network
+ * sky position. Returns null on any failure (missing creds, rate limit, network
  * error, etc.) so callers can fall back gracefully.
  */
 export async function fetchStarChartImage(
@@ -25,10 +25,10 @@ export async function fetchStarChartImage(
   }
 
   try {
-    const response = await fetch('/api/sky-snapshot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticId, ra, dec }),
+    // Call the backend API route using query parameters. Default zoom for star detail is 3.
+    const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=3`;
+    const response = await fetch(url, {
+      method: 'GET',
       signal: AbortSignal.timeout(15_000), // 15-second hard timeout
     });
 
@@ -93,10 +93,10 @@ export async function fetchMapChartImage(
   }
 
   try {
-    const response = await fetch('/api/sky-snapshot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ra, dec, zoom }),
+    // Call the backend API route using query parameters.
+    const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=${encodeURIComponent(zoom.toString())}`;
+    const response = await fetch(url, {
+      method: 'GET',
       signal: AbortSignal.timeout(25_000),
     });
 
