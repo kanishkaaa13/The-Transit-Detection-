@@ -4,7 +4,8 @@ import {
   ScatterChart, 
   Scatter, 
   XAxis, 
-  YAxis
+  YAxis,
+  CartesianGrid
 } from 'recharts';
 import { 
   Compass, 
@@ -16,11 +17,11 @@ import {
   AlertTriangle,
   RotateCcw
 } from 'lucide-react';
-import { fetchMapChartImage } from '@/services/astronomyApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SkySnapshot } from '@/components/SkySnapshot';
 
 interface SkyStar {
   id: string;
@@ -58,10 +59,6 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const dragStart = useRef({ x: 0, y: 0 });
   const startCenter = useRef({ ra: 0, dec: 0 });
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // AstronomyAPI sky map background
-  const [mapBgUrl, setMapBgUrl] = useState<string | null>(null);
-  const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'online' | 'error'>('idle');
 
   // Colors mapping for classifications
   const colors = {
@@ -165,50 +162,9 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     setRaDomain([minRa, maxRa]);
   }, [centerRa, centerDec, zoom]);
 
-  // Map fetch retry counter — incrementing it re-triggers the effect
-  const [mapRetryCount, setMapRetryCount] = useState<number>(0);
-
   // Ref for smooth-scrolling the sidebar to the selected star
   const selectedItemRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // Debounced AstronomyAPI fetch (400ms) with an 8-second hard timeout
-  // so a slow or hung API call never keeps the panel in a loading state indefinitely.
-  useEffect(() => {
-    setMapStatus('loading');
-    let abortCtrl: AbortController | null = null;
-
-    const timer = setTimeout(() => {
-      abortCtrl = new AbortController();
-
-      // 8-second hard ceiling — resolves as null → error state
-      const timeoutId = setTimeout(() => {
-        abortCtrl?.abort();
-        setMapStatus('error');
-      }, 8000);
-
-      fetchMapChartImage(centerRa, centerDec, zoom)
-        .then(url => {
-          clearTimeout(timeoutId);
-          if (url) {
-            setMapBgUrl(url);
-            setMapStatus('online');
-          } else {
-            setMapStatus('error');
-          }
-        })
-        .catch(() => {
-          clearTimeout(timeoutId);
-          setMapStatus('error');
-        });
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      abortCtrl?.abort();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [centerRa, centerDec, zoom, mapRetryCount]);
 
   // Align map center to highlighted search targets or manually navigated stars
   useEffect(() => {
@@ -353,41 +309,17 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               </div>
             </div>
 
-            {/* AstronomyAPI Sky Chart Status */}
-            <div className="flex items-center gap-2">
-              {mapStatus === 'online' && (
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  AstronomyAPI: LIVE
-                </span>
-              )}
-              {mapStatus === 'loading' && (
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping" />
-                  Fetching Star Chart…
-                </span>
-              )}
-              {mapStatus === 'error' && (
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-1 rounded-full">
-                    <AlertTriangle className="h-3 w-3" />
-                    Chart Unavailable — Check .env credentials
-                  </span>
-                  <button
-                    onClick={() => setMapRetryCount(c => c + 1)}
-                    title="Retry loading the star chart"
-                    className="flex items-center gap-1 text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-full transition-all cursor-pointer"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Retry
-                  </button>
-                </div>
-              )}
-              {mapStatus === 'idle' && (
-                <span className="flex items-center gap-1.5 text-[10px] text-slate-600 px-2 py-1 rounded-full border border-slate-800">
-                  Awaiting star chart…
-                </span>
-              )}
+            {/* Center Position Display */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full font-mono">
+                CENTER RA: {centerRa.toFixed(1)}°
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full font-mono">
+                CENTER DEC: {centerDec.toFixed(1)}°
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full font-mono">
+                ZOOM: {zoom}x
+              </span>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -532,47 +464,40 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                   </div>
                 )}
 
-                {/* Recharts Scatter chart viewport with AstronomyAPI sky background and mouse handlers */}
+                {/* Recharts Scatter chart viewport with starry background, mouse handlers, and coordinate grid lines */}
                 <div
                   ref={mapContainerRef}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUpOrLeave}
                   onMouseLeave={handleMouseUpOrLeave}
-                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden transition-all"
-                  style={mapBgUrl ? {
-                    backgroundImage: `url('${mapBgUrl}')`,
-                    backgroundSize: 'cover',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
+                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden bg-[#060c1a]/60 border border-slate-800/30"
+                  style={{
                     cursor: isDragging ? 'grabbing' : 'grab',
-                    transition: 'background-image 0.5s ease-in-out'
-                  } : {
-                    cursor: isDragging ? 'grabbing' : 'grab'
                   }}
                 >
-                  {/* Subtle Shimmer loading overlay (Feature 6) */}
-                  {mapStatus === 'loading' && (
-                    <div className="absolute inset-0 map-loading-shimmer pointer-events-none z-20" />
-                  )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart
-                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      margin={{ top: 25, right: 25, bottom: 25, left: 25 }}
                     >
-                      {/* Hide axes, rulers, and grid lines entirely to render clean custom stellar field overlay (Feature 1) */}
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.05)" />
                       <XAxis 
-                        hide={true}
                         type="number" 
                         dataKey="ra" 
                         domain={raDomain}
                         allowDataOverflow={true}
+                        stroke="rgba(148, 163, 184, 0.3)"
+                        fontSize={9}
+                        tickFormatter={(val) => `${val.toFixed(0)}° RA`}
                       />
                       <YAxis 
-                        hide={true}
                         type="number" 
                         dataKey="dec" 
                         domain={decDomain}
                         allowDataOverflow={true}
+                        stroke="rgba(148, 163, 184, 0.3)"
+                        fontSize={9}
+                        tickFormatter={(val) => `${val.toFixed(0)}° Dec`}
                       />
                       <Scatter 
                         name="Stellar Coordinates" 
@@ -674,6 +599,63 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
             </div>
           </Card>
       </div>
+
+      {/* Selected Target Details & Sky Snapshot */}
+      {selectedPopoverStar && (
+        <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
+          <CardHeader className="pb-3 border-b border-slate-800/60 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-md font-semibold text-slate-200">
+                Target Coordinate & Sky Telemetry — TIC {selectedPopoverStar.id}
+              </CardTitle>
+              <CardDescription className="text-slate-400 text-xs mt-1">
+                Visualizing field positioning and classification credentials
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className={`font-semibold px-2.5 py-1 ${badgeColors[selectedPopoverStar.classification]}`}>
+              {selectedPopoverStar.classification}
+            </Badge>
+          </CardHeader>
+          <CardContent className="pt-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-5 text-xs font-mono text-slate-400">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-medium font-sans">Right Ascension (RA)</span>
+                  <span className="text-slate-200 text-sm font-semibold mt-1 font-mono">{selectedPopoverStar.ra.toFixed(4)}°</span>
+                </div>
+                <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-medium font-sans">Declination (Dec)</span>
+                  <span className="text-slate-200 text-sm font-semibold mt-1 font-mono">{selectedPopoverStar.dec.toFixed(4)}°</span>
+                </div>
+                <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-medium font-sans">Classifier Confidence</span>
+                  <span className="text-indigo-300 text-sm font-semibold mt-1 font-mono">{(selectedPopoverStar.confidence * 100).toFixed(1)}%</span>
+                </div>
+                <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                  <span className="text-[10px] text-slate-500 font-medium font-sans">Mock Period</span>
+                  <span className="text-slate-200 text-sm font-semibold mt-1 font-mono">
+                    {((Number(selectedPopoverStar.id) % 15) + 1.25).toFixed(3)} d
+                  </span>
+                </div>
+              </div>
+              <div className="pt-2">
+                <Button 
+                  onClick={handleInspectNavigate} 
+                  className="w-full bg-indigo-650 hover:bg-indigo-500 text-white font-medium text-xs py-2 shadow-md cursor-pointer"
+                >
+                  Inspect Telemetry Details & Light Curve
+                  <ChevronRight className="h-4.5 w-4.5 ml-1 shrink-0" />
+                </Button>
+              </div>
+            </div>
+            <div className="border-t md:border-t-0 md:border-l border-slate-800/40 md:pl-6 pt-4 md:pt-0">
+              <div className="sky-snapshot-card-wrapper [&>div]:pt-0 [&>div]:border-t-0 [&>div>div:first-child]:hidden">
+                <SkySnapshot ticId={selectedPopoverStar.id} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Map Legend card */}
       <Card className="bg-[#0f172a]/10 border-slate-900">

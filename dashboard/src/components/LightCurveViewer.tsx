@@ -25,7 +25,8 @@ import {
   Send,
   Sparkles,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Star
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1300,6 +1301,321 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
             </CardContent>
           </Card>
 
+            {/* Below Light Curve space: Habitability, Sky Snapshot, Summary Report */}
+            {detectionResult && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-300">
+                {/* Column 1: Sky Snapshot & Habitability Profile */}
+                <div className="space-y-6">
+                  {/* Sky Snapshot Card */}
+                  <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden flex flex-col justify-between">
+                    <CardHeader className="pb-3 border-b border-slate-800/60">
+                      <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                        <Star className="h-4.5 w-4.5 text-indigo-400" />
+                        Sky Snapshot
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-[11px]">
+                        Target region star field snapshot
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-4 flex-1 flex flex-col justify-center">
+                      <SkySnapshot ticId={activeTicId} />
+                    </CardContent>
+                  </Card>
+
+                  {/* Habitability Card */}
+                  {(() => {
+                    const assessment = getHabitabilityAssessment(detectionResult);
+                    const orbitRadiusPx = assessment.planetStatus === 'hz' ? 52 : assessment.planetStatus === 'inner' ? 22 : 90;
+                    const angle = -Math.PI / 4;
+                    const planetX = 140 + orbitRadiusPx * Math.cos(angle);
+                    const planetY = 70 + orbitRadiusPx * Math.sin(angle);
+                    
+                    const orbitColor = assessment.planetStatus === 'hz' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.3)';
+                    const planetColor = assessment.planetStatus === 'hz' ? '#10b981' : '#ef4444';
+                    const statusBgColor = assessment.planetStatus === 'hz' 
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]' 
+                      : 'bg-rose-955/5 border-rose-500/10 text-rose-400/80';
+
+                    return (
+                      <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden">
+                        <CardHeader className="pb-3 border-b border-slate-800/60">
+                          <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                            <Globe className="h-4.5 w-4.5 text-emerald-400" />
+                            Habitability Profile
+                          </CardTitle>
+                          <CardDescription className="text-slate-400 text-[11px]">
+                            Stellar habitable zone and planet properties evaluation
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-5 space-y-5">
+                          <div className={`p-4 rounded-lg border flex items-center gap-4 transition-all ${statusBgColor}`}>
+                            {detectionResult.inHabitableZone ? (
+                              <>
+                                <div className="p-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)] animate-pulse">
+                                  <Globe className="h-6 w-6 text-emerald-400" />
+                                </div>
+                                <div>
+                                  <strong className="text-xs uppercase tracking-wider block font-semibold">Habitable Zone</strong>
+                                  <span className="text-sm font-bold text-emerald-350">IN HZ: YES</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="p-2 bg-rose-500/10 rounded-full border border-rose-500/10">
+                                  <Sun className="h-6 w-6 text-rose-450" />
+                                </div>
+                                <div>
+                                  <strong className="text-xs uppercase tracking-wider block font-medium">Habitable Zone</strong>
+                                  <span className="text-sm font-bold text-rose-450">IN HZ: NO</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          <div className="p-4 bg-[#020617]/50 rounded-lg border border-slate-800/60 flex flex-col items-center">
+                            <span className="text-[10px] text-slate-505 font-semibold uppercase tracking-wider self-start mb-2">Orbit Vetting Diagram</span>
+                            <svg width="100%" height="140" viewBox="0 0 280 140" className="mx-auto select-none">
+                              <defs>
+                                <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
+                                  <stop offset="0%" stopColor="#fef08a" />
+                                  <stop offset="35%" stopColor="#eab308" stopOpacity="0.8" />
+                                  <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
+                                </radialGradient>
+                              </defs>
+                              
+                              <circle cx="140" cy="70" r="52" fill="none" stroke="rgba(16, 185, 129, 0.15)" strokeWidth="30" />
+                              <circle cx="140" cy="70" r="52" fill="none" stroke="rgba(16, 185, 129, 0.4)" strokeWidth="1.5" strokeDasharray="2 4" />
+                              <circle cx="140" cy="70" r="67" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
+                              <circle cx="140" cy="70" r="37" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
+
+                              <circle cx="140" cy="70" r={orbitRadiusPx} fill="none" stroke={orbitColor} strokeWidth="1.5" strokeDasharray="4 4" />
+                              <circle cx="140" cy="70" r="18" fill="url(#starGlow)" />
+                              <circle cx="140" cy="70" r="6" fill="#fef08a" />
+                              <circle cx={planetX} cy={planetY} r="5" fill={planetColor} className="shadow-glow" />
+                              
+                              <text x="140" y="24" textAnchor="middle" fill="rgba(148, 163, 184, 0.5)" fontSize="9" fontWeight="bold" letterSpacing="0.1em">
+                                HABITABLE ZONE
+                              </text>
+                              <text x="140" y="130" textAnchor="middle" fill={planetColor} fontSize="10" fontWeight="bold">
+                                {assessment.planetStatus === 'hz' ? 'Orbit fits inside HZ' : assessment.planetStatus === 'inner' ? 'Orbit is too close (Too Hot)' : 'Orbit is too far (Too Cold)'}
+                              </text>
+                            </svg>
+                          </div>
+
+                          <div className="space-y-2.5 text-xs">
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Planet Designation Type</span>
+                              <Badge className="bg-indigo-950/20 text-indigo-300 border-indigo-500/20 text-[10px] font-semibold">
+                                {detectionResult.planetType}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Equilibrium Temp (Teq)</span>
+                              <span className="text-slate-300 font-bold font-mono">
+                                {assessment.equilibriumTemp} <span className="text-[10px] text-slate-550">K</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Insolation Flux (S_earth)</span>
+                              <span className="text-slate-300 font-bold font-mono">
+                                {assessment.insolationFlux.toFixed(2)} <span className="text-[10px] text-slate-550">S⊕</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Orbital Distance (a)</span>
+                              <span className="text-slate-300 font-bold font-mono">
+                                {assessment.orbitalDistance.toFixed(3)} <span className="text-[10px] text-slate-550">AU</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Stellar Temp (Teff)</span>
+                              <span className="text-slate-300 font-bold font-mono">
+                                {assessment.stellarTeff} <span className="text-[10px] text-slate-550">K</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Stellar Luminosity (L_sun)</span>
+                              <span className="text-slate-300 font-bold font-mono">
+                                {assessment.stellarLuminosity.toFixed(2)} <span className="text-[10px] text-slate-550">L⊙</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
+                              <span className="text-slate-550">Stellar Age Estimate</span>
+                              <span className="text-slate-300 font-medium font-mono">
+                                {detectionResult.stellarAge.toFixed(1)} <span className="text-[10px] text-slate-550">Gyr</span>
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5">
+                              <span className="text-slate-550">Distance to System</span>
+                              <span className="text-slate-300 font-medium font-mono">
+                                {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-550">ly</span>
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })()}
+                </div>
+
+                {/* Column 2: Stellar Summary Report */}
+                <div className="space-y-6">
+                  <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden flex flex-col justify-between min-h-full">
+                    <CardHeader className="pb-3 border-b border-slate-800/60">
+                      <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                        <FileText className="h-4.5 w-4.5 text-indigo-400" />
+                        Stellar Summary Report
+                      </CardTitle>
+                      <CardDescription className="text-slate-400 text-[11px]">
+                        Generate and download scientific summary reports
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-5 flex-1 flex flex-col justify-between space-y-4">
+                      {!reportText ? (
+                        <div className="py-20 text-center space-y-4 my-auto">
+                          <FileText className="h-12 w-12 text-indigo-500/20 mx-auto" />
+                          <p className="text-xs text-slate-500 max-w-[200px] mx-auto leading-relaxed">
+                            Generate a formal scientific summary report for TIC {activeTicId}.
+                          </p>
+                          <Button 
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-md shadow-indigo-500/10 active:scale-95"
+                            onClick={handleGenerateReport}
+                          >
+                            Generate Report
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 animate-in fade-in duration-300 flex-1 flex flex-col justify-between">
+                          <div className="p-4 bg-[#020617]/60 rounded-lg border border-slate-850 space-y-4 max-h-[460px] overflow-y-auto scrollbar text-left font-sans">
+                            <div className="space-y-1.5">
+                              <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                                <Info className="h-3.5 w-3.5 text-indigo-400" />
+                                1. Target Overview
+                              </h5>
+                              <p className="text-[11px] text-slate-350 leading-relaxed font-light">
+                                {reportText}
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                                <BarChart2 className="h-3.5 w-3.5 text-indigo-400" />
+                                2. Vetting & Transit Parameters
+                              </h5>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-500">Orbital Period:</span>
+                                  <span className="text-slate-300 font-mono font-bold">{detectionResult.period.toFixed(4)} d</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-505">Transit Depth:</span>
+                                  <span className="text-slate-300 font-mono font-bold">{(detectionResult.depth * 100).toFixed(4)}%</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-550">Transit Duration:</span>
+                                  <span className="text-slate-300 font-mono font-bold">{detectionResult.duration.toFixed(2)} h</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-555">Planet Size:</span>
+                                  <span className="text-slate-300 font-mono font-bold">
+                                    {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-550">Signal SNR:</span>
+                                  <span className="text-slate-300 font-mono font-bold">{detectionResult.snr.toFixed(1)}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-905 py-1">
+                                  <span className="text-slate-550">Stellar Age:</span>
+                                  <span className="text-slate-300 font-mono font-bold">{detectionResult.stellarAge.toFixed(1)} Gyr</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {reasoning && (
+                              <div className="space-y-2">
+                                <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                                  <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
+                                  3. AI Classifier Vetting
+                                </h5>
+                                <div className="space-y-1.5 text-[10px]">
+                                  {reasoning.rankedFeatures.map((test, index) => (
+                                    <div key={index} className="flex items-start gap-1.5">
+                                      <span className={test.passed ? 'text-emerald-450 font-bold' : 'text-rose-455 font-bold'}>
+                                        {test.passed ? '✓' : '✗'}
+                                      </span>
+                                      <div className="leading-normal">
+                                        <span className="font-semibold text-slate-300">{test.name}: </span>
+                                        <span className="text-slate-400">{test.explanation}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {assessment && (
+                              <div className="space-y-2">
+                                <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
+                                  <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                                  4. Habitability Assessment
+                                </h5>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">HZ Status:</span>
+                                    <span className={detectionResult.inHabitableZone ? 'text-emerald-455 font-bold' : 'text-slate-400'}>
+                                      {detectionResult.inHabitableZone ? 'YES' : 'NO'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">Designation:</span>
+                                    <span className="text-slate-355">{detectionResult.planetType}</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">Equil. Temp (Teq):</span>
+                                    <span className="text-slate-300 font-mono">{assessment.equilibriumTemp} K</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">Insolation Flux:</span>
+                                    <span className="text-slate-300 font-mono">{assessment.insolationFlux.toFixed(2)} S⊕</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">Stellar Teff:</span>
+                                    <span className="text-slate-300 font-mono">{assessment.stellarTeff} K</span>
+                                  </div>
+                                  <div className="flex justify-between border-b border-slate-905 py-1">
+                                    <span className="text-slate-500">Stellar L_sun:</span>
+                                    <span className="text-slate-300 font-mono">{assessment.stellarLuminosity.toFixed(2)} L⊙</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2">
+                            <Button 
+                              variant="outline" 
+                              className="flex-1 text-xs border-slate-700 hover:bg-slate-800 text-slate-200 cursor-pointer"
+                              onClick={handleCopyClipboard}
+                            >
+                              {copied ? 'Copied!' : 'Copy Report'}
+                            </Button>
+                            <Button 
+                              className="flex-1 text-xs bg-indigo-650 hover:bg-indigo-500 text-white font-medium cursor-pointer"
+                              onClick={handleDownloadPDF}
+                            >
+                              Download PDF
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Detection & Classification Panel (Right 1 col) */}
           <div className="space-y-6">
             <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md">
@@ -1325,15 +1641,15 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                 ) : detectionError ? (
                   // Detection failure state with retry button
                   <div className="space-y-4">
-                    <div className="flex items-start gap-3 p-3.5 bg-rose-950/30 border border-rose-500/25 rounded-lg">
-                      <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 p-3.5 bg-rose-955/30 border border-rose-500/25 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-rose-455 shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-rose-300">Classification Failed</p>
                         <p className="text-[11px] text-rose-400/70 mt-0.5 leading-relaxed">{detectionError}</p>
                       </div>
                     </div>
                     <Button
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all active:scale-95"
+                      className="w-full bg-indigo-650 hover:bg-indigo-500 text-white font-medium transition-all active:scale-95"
                       onClick={handleDetectSignal}
                     >
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
@@ -1346,7 +1662,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                     <div className="space-y-4">
                       {/* Classification Badge & Title */}
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400 font-medium">Stellar Classification</span>
+                        <span className="text-sm text-slate-405 font-medium">Stellar Classification</span>
                         <Badge 
                           variant="outline" 
                           className={`font-semibold px-2.5 py-1 ${badgeColors[detectionResult.classification]}`}
@@ -1375,7 +1691,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-400">Classification Confidence</span>
-                          <span className="text-indigo-300 font-semibold font-mono">
+                          <span className="text-indigo-305 font-semibold font-mono">
                             {(detectionResult.confidence * 100).toFixed(1)}%
                           </span>
                         </div>
@@ -1388,11 +1704,10 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                       </div>
                     </div>
 
-                    {/* Detected Signal Properties */}
-                    {/* Parameters Stat Cards Grid */}
+                    {/* Detected Signal Parameters */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <BarChart2 className="h-3.5 w-3.5 text-cyan-400" />
+                        <BarChart2 className="h-3.5 w-3.5 text-cyan-405" />
                         Stellar & Planet Parameters
                       </h4>
                       <div className="grid grid-cols-2 gap-3">
@@ -1406,7 +1721,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                           <span className="text-[10px] text-slate-500 font-medium">Transit Depth</span>
                           <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
                             {(detectionResult.depth * 100).toFixed(4)}% 
-                            <span className="text-[9px] text-slate-500 font-sans block">
+                            <span className="text-[9px] text-slate-550 font-sans block">
                               ({(detectionResult.depth * 1e6).toFixed(0)} ppm)
                             </span>
                           </span>
@@ -1414,7 +1729,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                         <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
                           <span className="text-[10px] text-slate-500 font-medium">Transit Duration</span>
                           <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
-                            {detectionResult.duration.toFixed(2)} <span className="text-[10px] text-slate-500 font-sans">hours</span>
+                            {detectionResult.duration.toFixed(2)} <span className="text-[10px] text-slate-505 font-sans">hours</span>
                           </span>
                         </div>
                         <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
@@ -1431,15 +1746,12 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                         </div>
                         <div className="p-3 bg-[#020617]/40 rounded-lg border border-[#38bdf8]/10 bg-sky-950/5 flex flex-col justify-between shadow-[0_0_15px_rgba(56,189,248,0.02)]">
                           <span className="text-[10px] text-sky-400/80 font-medium">Signal SNR</span>
-                          <span className="font-mono text-sky-300 text-sm font-bold mt-1">
+                          <span className="font-mono text-sky-305 text-sm font-bold mt-1">
                             {detectionResult.snr.toFixed(1)}
                           </span>
                         </div>
                       </div>
                     </div>
-
-                    {/* Sky Snapshot Thumbnail */}
-                    <SkySnapshot ticId={activeTicId} />
 
                     {/* AI Reasoning Panel */}
                     {reasoning && (
@@ -1449,13 +1761,12 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                           AI Classifier Reasoning
                         </h4>
                         
-                        {/* Ranked feature tests list */}
                         <div className="space-y-2">
                           {reasoning.rankedFeatures
                             .sort((a, b) => b.importance - a.importance)
                             .map((test, index) => {
                               const IconComponent = test.passed ? CheckCircle2 : XCircle;
-                              const iconColor = test.passed ? 'text-emerald-400' : 'text-rose-450';
+                              const iconColor = test.passed ? 'text-emerald-400' : 'text-rose-455';
                               const bgColor = test.passed ? 'bg-emerald-500/5 border-emerald-500/10' : 'bg-rose-500/5 border-rose-500/10';
                               
                               return (
@@ -1477,11 +1788,10 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                             })}
                         </div>
 
-                        {/* Expandable "Why this classification?" section */}
                         <div className="border border-slate-800 rounded-lg overflow-hidden bg-[#020617]/20">
                           <button 
                             type="button"
-                            className="w-full px-3 py-2 text-left text-xs font-medium text-slate-350 hover:text-slate-100 bg-[#020617]/50 flex justify-between items-center transition-all"
+                            className="w-full px-3 py-2 text-left text-xs font-medium text-slate-350 hover:text-slate-105 bg-[#020617]/50 flex justify-between items-center transition-all"
                             onClick={() => setIsWhyOpen(!isWhyOpen)}
                           >
                             <span>Why this classification?</span>
@@ -1524,347 +1834,6 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
               </CardContent>
             </Card>
 
-            {/* Habitability Card - Rendered conditionally when detection results exist */}
-            {detectionResult && (() => {
-              const assessment = getHabitabilityAssessment(detectionResult);
-              const orbitRadiusPx = assessment.planetStatus === 'hz' ? 52 : assessment.planetStatus === 'inner' ? 22 : 90;
-              const angle = -Math.PI / 4; // 45 degrees top right quadrant for nice spacing
-              const planetX = 140 + orbitRadiusPx * Math.cos(angle);
-              const planetY = 70 + orbitRadiusPx * Math.sin(angle);
-              
-              const orbitColor = assessment.planetStatus === 'hz' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(239, 68, 68, 0.3)';
-              const planetColor = assessment.planetStatus === 'hz' ? '#10b981' : '#ef4444';
-              const statusBgColor = assessment.planetStatus === 'hz' 
-                ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]' 
-                : 'bg-rose-955/5 border-rose-500/10 text-rose-400/80';
-
-              return (
-                <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
-                  <CardHeader className="pb-3 border-b border-slate-800/60">
-                    <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
-                      <Globe className="h-4.5 w-4.5 text-emerald-400" />
-                      Habitability Profile
-                    </CardTitle>
-                    <CardDescription className="text-slate-400 text-[11px]">
-                      Stellar habitable zone and planet properties evaluation
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-5 space-y-5">
-                    {/* HZ Status Indicator block */}
-                    <div className={`p-4 rounded-lg border flex items-center gap-4 transition-all ${statusBgColor}`}>
-                      {detectionResult.inHabitableZone ? (
-                        <>
-                          <div className="p-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)] animate-pulse">
-                            <Globe className="h-6 w-6 text-emerald-400" />
-                          </div>
-                          <div>
-                            <strong className="text-xs uppercase tracking-wider block font-semibold">Habitable Zone</strong>
-                            <span className="text-sm font-bold text-emerald-350">IN HZ: YES</span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="p-2 bg-rose-500/10 rounded-full border border-rose-500/10">
-                            <Sun className="h-6 w-6 text-rose-450" />
-                          </div>
-                          <div>
-                            <strong className="text-xs uppercase tracking-wider block font-medium">Habitable Zone</strong>
-                            <span className="text-sm font-bold text-rose-450">IN HZ: NO</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Habitable Zone Diagram */}
-                    <div className="p-4 bg-[#020617]/50 rounded-lg border border-slate-800/60 flex flex-col items-center">
-                      <span className="text-[10px] text-slate-505 font-semibold uppercase tracking-wider self-start mb-2">Orbit Vetting Diagram</span>
-                      
-                      <svg width="100%" height="140" viewBox="0 0 280 140" className="mx-auto select-none">
-                        <defs>
-                          <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
-                            <stop offset="0%" stopColor="#fef08a" />
-                            <stop offset="35%" stopColor="#eab308" stopOpacity="0.8" />
-                            <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
-                          </radialGradient>
-                        </defs>
-                        
-                        {/* Habitable Zone Shaded Ring */}
-                        <circle 
-                          cx="140" 
-                          cy="70" 
-                          r="52" 
-                          fill="none" 
-                          stroke="rgba(16, 185, 129, 0.15)" 
-                          strokeWidth="30" 
-                        />
-                        <circle 
-                          cx="140" 
-                          cy="70" 
-                          r="52" 
-                          fill="none" 
-                          stroke="rgba(16, 185, 129, 0.4)" 
-                          strokeWidth="1.5" 
-                          strokeDasharray="2 4"
-                        />
-
-                        {/* Outer boundary limit circle */}
-                        <circle cx="140" cy="70" r="67" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
-                        {/* Inner boundary limit circle */}
-                        <circle cx="140" cy="70" r="37" fill="none" stroke="rgba(148, 163, 184, 0.08)" strokeWidth="1" />
-
-                        {/* Planet Orbit Ring */}
-                        <circle 
-                          cx="140" 
-                          cy="70" 
-                          r={orbitRadiusPx} 
-                          fill="none" 
-                          stroke={orbitColor} 
-                          strokeWidth="1.5" 
-                          strokeDasharray="4 4" 
-                        />
-
-                        {/* Host Star */}
-                        <circle cx="140" cy="70" r="18" fill="url(#starGlow)" />
-                        <circle cx="140" cy="70" r="6" fill="#fef08a" />
-
-                        {/* Planet Dot */}
-                        <circle 
-                          cx={planetX} 
-                          cy={planetY} 
-                          r="5" 
-                          fill={planetColor} 
-                          className="shadow-glow"
-                        />
-                        
-                        {/* Orbit Vetting labels */}
-                        <text x="140" y="24" textAnchor="middle" fill="rgba(148, 163, 184, 0.5)" fontSize="9" fontWeight="bold" letterSpacing="0.1em">
-                          HABITABLE ZONE
-                        </text>
-                        <text x="140" y="130" textAnchor="middle" fill={planetColor} fontSize="10" fontWeight="bold">
-                          {assessment.planetStatus === 'hz' ? 'Orbit fits inside HZ' : assessment.planetStatus === 'inner' ? 'Orbit is too close (Too Hot)' : 'Orbit is too far (Too Cold)'}
-                        </text>
-                      </svg>
-                    </div>
-
-                    {/* Derived Assessment Parameters */}
-                    <div className="space-y-2.5 text-xs">
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Planet Designation Type</span>
-                        <Badge className="bg-indigo-950/20 text-indigo-300 border-indigo-500/20 text-[10px] font-semibold">
-                          {detectionResult.planetType}
-                        </Badge>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Equilibrium Temp (Teq)</span>
-                        <span className="text-slate-300 font-bold font-mono">
-                          {assessment.equilibriumTemp} <span className="text-[10px] text-slate-500">K</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Insolation Flux (S_earth)</span>
-                        <span className="text-slate-300 font-bold font-mono">
-                          {assessment.insolationFlux.toFixed(2)} <span className="text-[10px] text-slate-500">S⊕</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Orbital Distance (a)</span>
-                        <span className="text-slate-300 font-bold font-mono">
-                          {assessment.orbitalDistance.toFixed(3)} <span className="text-[10px] text-slate-500">AU</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Stellar Temp (Teff)</span>
-                        <span className="text-slate-300 font-bold font-mono">
-                          {assessment.stellarTeff} <span className="text-[10px] text-slate-500">K</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Stellar Luminosity (L_sun)</span>
-                        <span className="text-slate-300 font-bold font-mono">
-                          {assessment.stellarLuminosity.toFixed(2)} <span className="text-[10px] text-slate-500">L⊙</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5 border-b border-slate-900/50">
-                        <span className="text-slate-500">Stellar Age Estimate</span>
-                        <span className="text-slate-300 font-medium font-mono">
-                          {detectionResult.stellarAge.toFixed(1)} <span className="text-[10px] text-slate-500">Gyr</span>
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center py-1.5">
-                        <span className="text-slate-500">Distance to System</span>
-                        <span className="text-slate-300 font-medium font-mono">
-                          {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-500">ly</span>
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
-
-            {/* Summary Report Card - Rendered conditionally when detection results exist */}
-            {detectionResult && (
-              <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
-                <CardHeader className="pb-3 border-b border-slate-800/60">
-                  <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
-                    <FileText className="h-4.5 w-4.5 text-indigo-400" />
-                    Stellar Summary Report
-                  </CardTitle>
-                  <CardDescription className="text-slate-400 text-[11px]">
-                    Generate and download scientific summary reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-5 space-y-4">
-                  {!reportText ? (
-                    <Button 
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all shadow-md shadow-indigo-500/10 active:scale-95"
-                      onClick={handleGenerateReport}
-                    >
-                      Generate Report
-                    </Button>
-                  ) : (
-                    <div className="space-y-4 animate-in fade-in duration-300">
-                      <div className="p-4 bg-[#020617]/60 rounded-lg border border-slate-850 space-y-4 max-h-[450px] overflow-y-auto scrollbar text-left font-sans">
-                        
-                        {/* Section 1: Overview */}
-                        <div className="space-y-1.5">
-                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
-                            <Info className="h-3.5 w-3.5 text-indigo-400" />
-                            1. Target Overview
-                          </h5>
-                          <p className="text-[11px] text-slate-350 leading-relaxed font-light">
-                            {reportText}
-                          </p>
-                        </div>
-
-                        {/* Section 2: Parameters */}
-                        <div className="space-y-2">
-                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
-                            <BarChart2 className="h-3.5 w-3.5 text-indigo-400" />
-                            2. Vetting & Transit Parameters
-                          </h5>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Orbital Period:</span>
-                              <span className="text-slate-300 font-mono font-bold">{detectionResult.period.toFixed(4)} d</span>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Transit Depth:</span>
-                              <span className="text-slate-300 font-mono font-bold">{(detectionResult.depth * 100).toFixed(4)}%</span>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Transit Duration:</span>
-                              <span className="text-slate-300 font-mono font-bold">{detectionResult.duration.toFixed(2)} h</span>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Planet Size:</span>
-                              <span className="text-slate-300 font-mono font-bold">
-                                {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Signal SNR:</span>
-                              <span className="text-slate-300 font-mono font-bold">{detectionResult.snr.toFixed(1)}</span>
-                            </div>
-                            <div className="flex justify-between border-b border-slate-905 py-1">
-                              <span className="text-slate-500">Stellar Age:</span>
-                              <span className="text-slate-300 font-mono font-bold">{detectionResult.stellarAge.toFixed(1)} Gyr</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Section 3: AI Reasoning */}
-                        {reasoning && (
-                          <div className="space-y-2">
-                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5 text-indigo-400" />
-                              3. AI Classifier Vetting
-                            </h5>
-                            <div className="space-y-1.5 text-[10px]">
-                              {reasoning.rankedFeatures.map((test, index) => (
-                                <div key={index} className="flex items-start gap-1.5">
-                                  <span className={test.passed ? 'text-emerald-450 font-bold' : 'text-rose-450 font-bold'}>
-                                    {test.passed ? '✓' : '✗'}
-                                  </span>
-                                  <div className="leading-normal">
-                                    <span className="font-semibold text-slate-300">{test.name}: </span>
-                                    <span className="text-slate-400">{test.explanation}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Section 4: Habitability Assessment */}
-                        {assessment && (
-                          <div className="space-y-2">
-                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-1 flex items-center gap-1.5">
-                              <Globe className="h-3.5 w-3.5 text-indigo-400" />
-                              4. Habitability Assessment
-                            </h5>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">HZ Status:</span>
-                                <span className={detectionResult.inHabitableZone ? 'text-emerald-450 font-bold' : 'text-slate-400'}>
-                                  {detectionResult.inHabitableZone ? 'YES' : 'NO'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">Designation:</span>
-                                <span className="text-slate-350">{detectionResult.planetType}</span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">Equil. Temp (Teq):</span>
-                                <span className="text-slate-300 font-mono">{assessment.equilibriumTemp} K</span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">Insolation Flux:</span>
-                                <span className="text-slate-300 font-mono">{assessment.insolationFlux.toFixed(2)} S⊕</span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">Stellar Teff:</span>
-                                <span className="text-slate-300 font-mono">{assessment.stellarTeff} K</span>
-                              </div>
-                              <div className="flex justify-between border-b border-slate-905 py-1">
-                                <span className="text-slate-500">Stellar L_sun:</span>
-                                <span className="text-slate-300 font-mono">{assessment.stellarLuminosity.toFixed(2)} L⊙</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          className="flex-1 text-xs border-slate-700 hover:bg-slate-800 text-slate-200 cursor-pointer"
-                          onClick={handleCopyClipboard}
-                        >
-                          {copied ? 'Copied!' : 'Copy Report'}
-                        </Button>
-                        <Button 
-                          className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-medium cursor-pointer"
-                          onClick={handleDownloadPDF}
-                        >
-                          Download PDF
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* PDF Error Toast */}
             {pdfError && (
               <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-3 px-5 py-3 bg-[#1a0a0a] border border-rose-500/40 rounded-xl shadow-2xl text-xs animate-in slide-in-from-bottom-4 duration-300">
                 <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
