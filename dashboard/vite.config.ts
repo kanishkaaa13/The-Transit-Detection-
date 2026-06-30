@@ -241,10 +241,439 @@ export default defineConfig(({ mode }) => {
         });
 
         // ---------------------------------------------------------------
-        // AstronomyAPI Proxy: POST /api/sky-snapshot
-        // Keeps Application Secret server-side — never exposed to client
+        // POST /api/sky-snapshot  (legacy — still used by SkySnapshot.tsx)
+        // Body: { ticId?, ra, dec, zoom? }
         // ---------------------------------------------------------------
         server.middlewares.use('/api/sky-snapshot', (req, res, next) => {
+          if (req.method !== 'POST') return next();
+          let rawBody = '';
+          req.on('data', (chunk: Buffer) => { rawBody += chunk.toString(); });
+          req.on('end', async () => {
+            try {
+              const parsed   = JSON.parse(rawBody || '{}');
+              const { ticId, ra, dec } = parsed;
+              const zoom     = (typeof parsed.zoom === 'number' && parsed.zoom >= 1 && parsed.zoom <= 6)
+                ? Math.round(parsed.zoom) : 3;
+              const appId    = (process.env.ASTRONOMY_API_ID     || '').trim();
+              const appSecret = (process.env.ASTRONOMY_API_SECRET || '').trim();
+              console.log(`[sky-snapshot] Auth → ID:${!!appId} SECRET:${!!appSecret}`);
+              if (!appId || !appSecret) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'credentials_not_configured' }));
+                return;
+              }
+              const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
+              const raHours     = (typeof ra === 'number' ? ra : 0) / 15;
+              const decNum      = typeof dec === 'number' ? dec : -87;
+              const today       = new Date().toISOString().split('T')[0];
+              const body        = JSON.stringify({
+                style: 'navy',
+                observer: { latitude: decNum, longitude: 0, date: today },
+                view: { type: 'area', parameters: { position: { equatorial: { rightAscension: raHours, declination: decNum } }, zoom } }
+              });
+              console.log(`[sky-snapshot] → RA=${raHours.toFixed(4)}h Dec=${decNum}° Zoom=${zoom}`);
+              console.log('[sky-snapshot] Body:', body);
+              const upstream    = await fetch('https://api.astronomyapi.com/api/v2/studio/star-chart', {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
+                body,
+                signal: AbortSignal.timeout(25_000),
+              });
+              const responseText = await upstream.text();
+              console.log(`[sky-snapshot] ← ${upstream.status}: ${responseText.slice(0, 600)}`);
+              if (!upstream.ok) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `upstream_${upstream.status}`, detail: responseText.slice(0, 400) }));
+                return;
+              }
+              let data: any = {};
+              try { data = JSON.parse(responseText); } catch { /* not JSON */ }
+              const imageUrl = data?.data?.imageUrl;
+              if (!imageUrl) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'no_image_url', raw: responseText.slice(0, 300) }));
+                return;
+              }
+              console.log(`[sky-snapshot] ✓ TIC=${ticId ?? 'map'} → ${imageUrl.slice(0, 80)}…`);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ imageUrl }));
+            } catch (err: any) {
+              console.error('[sky-snapshot] Error:', err.message);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        });
+
+        // =================================================================
+        // GET /api/sky-chart?ra=<degrees>&dec=<degrees>&zoom=<1-6>
+        //
+        // PRIMARY server-side proxy for AstronomyAPI Star Chart.
+        //
+        // Data flow (credentials NEVER leave the Node.js process):
+        //   Browser → GET /api/sky-chart?... (localhost only)
+        //           → [Node.js] builds Basic Auth from env vars
+        //           → POST https://api.astronomyapi.com/api/v2/studio/star-chart
+        //           → { imageUrl: "https://cdn.astronomyapi.com/..." }
+        //           → Browser renders <img src={imageUrl} />
+        //
+        // Credentials: add to  dashboard/.env  (never commit this file)
+        //   ASTRONOMY_API_ID=your_application_id
+        //   ASTRONOMY_API_SECRET=your_application_secret
+        // Then restart:  Ctrl+C  →  npm run dev
+        //
+        // Response:
+        //   { imageUrl: string }                          on success
+        //   { error: "credentials_not_configured" }       if .env is empty
+        //   { error: "upstream_<status>", detail: "..." } on API error
+        // =================================================================
+        server.middlewares.use('/api/sky-chart', async (req: any, res: any, next: any) => {
+          if (req.method !== 'GET') return next();
+
+          try {
+            // req.url here is the suffix after '/api/sky-chart', e.g. '?ra=0&dec=-87&zoom=1'
+            const qs     = (req.url ?? '').replace(/^[/?]+/, '');
+            const params = new URLSearchParams(qs);
+
+            const ra   = parseFloat(params.get('ra')   ?? '0');
+            const dec  = parseFloat(params.get('dec')  ?? '-87');
+            const zoom = Math.max(1, Math.min(6, parseInt(params.get('zoom') ?? '1', 10)));
+
+            // ── Credential check ────────────────────────────────────────
+            const appId     = (process.env.ASTRONOMY_API_ID     || '').trim();
+            const appSecret = (process.env.ASTRONOMY_API_SECRET || '').trim();
+
+            console.log(`[sky-chart] Credentials → ID present: ${!!appId} | SECRET present: ${!!appSecret}`);
+
+            if (!appId || !appSecret) {
+              console.warn(
+                '[sky-chart] ⚠ Credentials missing.\n' +
+                '  1. Open  dashboard/.env\n' +
+                '  2. Set   ASTRONOMY_API_ID=your_app_id\n' +
+                '           ASTRONOMY_API_SECRET=your_secret\n' +
+                '  3. Restart the dev server (Ctrl+C → npm run dev)'
+              );
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'credentials_not_configured' }));
+              return;
+            }
+
+            // ── Build AstronomyAPI request ──────────────────────────────
+            // rightAscension must be in hours (0–24), not degrees
+            const raHours = (isNaN(ra)  ? 0   : ra)  / 15;
+            const decNum  = (isNaN(dec) ? -87 : dec);
+            const today   = new Date().toISOString().split('T')[0];
+
+            const astroBody = JSON.stringify({
+              style: 'navy',
+              observer: {
+                latitude: decNum,   // center observation on target's declination
+                longitude: 0,
+                date: today,        // YYYY-MM-DD
+              },
+              view: {
+                type: 'area',
+                parameters: {
+                  position: {
+                    equatorial: {
+                      rightAscension: raHours,  // hours 0–24
+                      declination: decNum,       // degrees
+                    }
+                  },
+                  zoom,  // 1 = widest, 6 = most zoomed
+                }
+              }
+            });
+
+            // ── Logging ─────────────────────────────────────────────────
+            console.log(`[sky-chart] → POST api.astronomyapi.com | RA=${raHours.toFixed(4)}h Dec=${decNum}° Zoom=${zoom}`);
+            console.log(`[sky-chart] Auth: Basic ${appId.slice(0, 4)}…:<SECRET>`);
+            console.log('[sky-chart] Request body:', astroBody);
+
+            // ── Upstream call (server→server, no browser CORS) ──────────
+            const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
+            const upstream = await fetch('https://api.astronomyapi.com/api/v2/studio/star-chart', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json',
+              },
+              body: astroBody,
+              signal: AbortSignal.timeout(25_000),
+            });
+
+            // ── Full response log ────────────────────────────────────────
+            const responseText = await upstream.text();
+            console.log(`[sky-chart] ← Response ${upstream.status} ${upstream.statusText}`);
+            console.log('[sky-chart] Response body:', responseText.slice(0, 800));
+
+            if (!upstream.ok) {
+              console.error(`[sky-chart] API error ${upstream.status}: ${responseText.slice(0, 300)}`);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: `upstream_${upstream.status}`, detail: responseText.slice(0, 400) }));
+              return;
+            }
+
+            let data: any = {};
+            try { data = JSON.parse(responseText); } catch { /* non-JSON */ }
+
+            const imageUrl: string | undefined = data?.data?.imageUrl;
+
+            if (!imageUrl) {
+              console.error('[sky-chart] ⚠ No imageUrl. Full body:', responseText.slice(0, 600));
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'no_image_url', raw: responseText.slice(0, 300) }));
+              return;
+            }
+
+            console.log(`[sky-chart] ✓ ${imageUrl.slice(0, 80)}…`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ imageUrl }));
+
+          } catch (err: any) {
+            console.error('[sky-chart] Unhandled error:', err.message);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+      }
+    }
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  }
+})
+
+        // ---------------------------------------------------------------
+        server.middlewares.use('/api/sky-snapshot', (req, res, next) => {
+          if (req.method !== 'POST') return next();
+
+          let rawBody = '';
+          req.on('data', (chunk: Buffer) => { rawBody += chunk.toString(); });
+          req.on('end', async () => {
+            try {
+              const parsed = JSON.parse(rawBody || '{}');
+              const { ticId, ra, dec } = parsed;
+              const zoom = (typeof parsed.zoom === 'number' && parsed.zoom >= 1 && parsed.zoom <= 6)
+                ? Math.round(parsed.zoom) : 1;
+
+              const appId     = (process.env.ASTRONOMY_API_ID     || '').trim();
+              const appSecret = (process.env.ASTRONOMY_API_SECRET || '').trim();
+
+              console.log(`[sky-snapshot] Auth present → ID:${!!appId} SECRET:${!!appSecret}`);
+
+              if (!appId || !appSecret) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'credentials_not_configured' }));
+                return;
+              }
+
+              const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
+              const raHours     = (typeof ra === 'number' ? ra : 0) / 15;
+              const decNum      = typeof dec === 'number' ? dec : -87;
+
+              const body = JSON.stringify({
+                style: 'navy',
+                observer: { latitude: decNum, longitude: 0, date: new Date().toISOString().split('T')[0] },
+                view: {
+                  type: 'area',
+                  parameters: {
+                    position: { equatorial: { rightAscension: raHours, declination: decNum } },
+                    zoom,
+                  }
+                }
+              });
+
+              console.log(`[sky-snapshot] → RA=${raHours.toFixed(4)}h Dec=${decNum}° Zoom=${zoom}`);
+              console.log('[sky-snapshot] Body:', body);
+
+              const upstream = await fetch('https://api.astronomyapi.com/api/v2/studio/star-chart', {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/json' },
+                body,
+                signal: AbortSignal.timeout(25_000),
+              });
+
+              const responseText = await upstream.text();
+              console.log(`[sky-snapshot] ← ${upstream.status}: ${responseText.slice(0, 600)}`);
+
+              if (!upstream.ok) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: `upstream_${upstream.status}`, detail: responseText.slice(0, 400) }));
+                return;
+              }
+
+              let data: any = {};
+              try { data = JSON.parse(responseText); } catch { /* not JSON */ }
+              const imageUrl = data?.data?.imageUrl;
+
+              if (!imageUrl) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'no_image_url', raw: responseText.slice(0, 300) }));
+                return;
+              }
+
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ imageUrl }));
+
+            } catch (err: any) {
+              console.error('[sky-snapshot] Error:', err.message);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+        });
+
+        // =================================================================
+        // GET /api/sky-chart?ra=<degrees>&dec=<degrees>&zoom=<1-6>
+        //
+        // PRIMARY server-side proxy for AstronomyAPI Star Chart.
+        //
+        // Architecture:
+        //   Browser → GET /api/sky-chart (localhost) → Node.js Vite middleware
+        //           → POST api.astronomyapi.com (server-to-server, with Basic Auth)
+        //           → { imageUrl } → Browser displays image
+        //
+        // The Basic Auth header is built inside this Node.js process.
+        // Credentials are NEVER sent to the browser and NEVER appear in
+        // browser DevTools Network tab — only localhost traffic is visible.
+        //
+        // Env vars (set in dashboard/.env, restart dev server after editing):
+        //   ASTRONOMY_API_ID=your_application_id
+        //   ASTRONOMY_API_SECRET=your_application_secret
+        //
+        // Response shape:
+        //   Success → HTTP 200  { imageUrl: "https://cdn.astronomyapi.com/..." }
+        //   No creds → HTTP 200  { error: "credentials_not_configured" }
+        //   API error → HTTP 200  { error: "upstream_<status>", detail: "..." }
+        // =================================================================
+        server.middlewares.use('/api/sky-chart', async (req: any, res: any, next: any) => {
+          if (req.method !== 'GET') return next();
+
+          try {
+            // req.url is the portion after the matched prefix ("/api/sky-chart")
+            // It will be "" or "?ra=0&dec=-87&zoom=1" — reconstruct full URL for parsing
+            const qs = (req.url ?? '').replace(/^[/?]+/, '');
+            const params = new URLSearchParams(qs);
+
+            const ra   = parseFloat(params.get('ra')   ?? '0');
+            const dec  = parseFloat(params.get('dec')  ?? '-87');
+            const zoom = Math.max(1, Math.min(6, parseInt(params.get('zoom') ?? '1', 10)));
+
+            // ── Credential check ─────────────────────────────────────────
+            const appId     = (process.env.ASTRONOMY_API_ID     || '').trim();
+            const appSecret = (process.env.ASTRONOMY_API_SECRET || '').trim();
+
+            console.log(`[sky-chart] Credentials → ID present: ${!!appId} | SECRET present: ${!!appSecret}`);
+
+            if (!appId || !appSecret) {
+              console.warn(
+                '[sky-chart] ⚠ Credentials missing.\n' +
+                '  → Open dashboard/.env and fill in:\n' +
+                '      ASTRONOMY_API_ID=your_app_id\n' +
+                '      ASTRONOMY_API_SECRET=your_secret\n' +
+                '  → Then restart the dev server (Ctrl+C → npm run dev)'
+              );
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'credentials_not_configured' }));
+              return;
+            }
+
+            // ── Build AstronomyAPI request ────────────────────────────────
+            // AstronomyAPI requires rightAscension in hours (0-24), not degrees
+            const raHours = (isNaN(ra) ? 0 : ra) / 15;
+            const decNum  = isNaN(dec) ? -87 : dec;
+            const today   = new Date().toISOString().split('T')[0];
+
+            const astroBody = JSON.stringify({
+              style: 'navy',
+              observer: {
+                latitude: decNum,   // observer latitude = target dec for south-pole centering
+                longitude: 0,
+                date: today,        // YYYY-MM-DD format
+              },
+              view: {
+                type: 'area',
+                parameters: {
+                  position: {
+                    equatorial: {
+                      rightAscension: raHours, // hours (0-24)
+                      declination: decNum,      // degrees
+                    }
+                  },
+                  zoom,  // integer 1 (widest) – 6 (most zoomed)
+                }
+              }
+            });
+
+            // ── Logging (shows in npm run dev terminal) ───────────────────
+            console.log(`[sky-chart] → POST api.astronomyapi.com | RA=${raHours.toFixed(4)}h Dec=${decNum}° Zoom=${zoom}`);
+            console.log(`[sky-chart] Auth header: Basic ${appId.slice(0, 4)}…:<SECRET>`);
+            console.log('[sky-chart] Request body:', astroBody);
+
+            // ── Upstream call (server-to-server, Basic Auth, no CORS) ─────
+            const credentials = Buffer.from(`${appId}:${appSecret}`).toString('base64');
+            const upstream = await fetch('https://api.astronomyapi.com/api/v2/studio/star-chart', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Basic ${credentials}`,
+                'Content-Type': 'application/json',
+              },
+              body: astroBody,
+              signal: AbortSignal.timeout(25_000),
+            });
+
+            // ── Full response log ─────────────────────────────────────────
+            const responseText = await upstream.text();
+            console.log(`[sky-chart] ← Response ${upstream.status} ${upstream.statusText}`);
+            console.log('[sky-chart] Response body:', responseText.slice(0, 800));
+
+            if (!upstream.ok) {
+              console.error(`[sky-chart] AstronomyAPI error ${upstream.status}: ${responseText.slice(0, 300)}`);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                error: `upstream_${upstream.status}`,
+                detail: responseText.slice(0, 400),
+              }));
+              return;
+            }
+
+            let data: any = {};
+            try { data = JSON.parse(responseText); } catch { /* non-JSON response */ }
+
+            const imageUrl: string | undefined = data?.data?.imageUrl;
+
+            if (!imageUrl) {
+              console.error('[sky-chart] ⚠ No imageUrl in response. Full body:', responseText.slice(0, 600));
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'no_image_url', raw: responseText.slice(0, 300) }));
+              return;
+            }
+
+            console.log(`[sky-chart] ✓ imageUrl returned → ${imageUrl.slice(0, 80)}…`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ imageUrl }));
+
+          } catch (err: any) {
+            console.error('[sky-chart] Unhandled error:', err.message);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          }
+        });
+      }
+    }
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  }
+})
+
           if (req.method !== 'POST') return next();
 
           let rawBody = '';
@@ -351,7 +780,23 @@ export default defineConfig(({ mode }) => {
         });
       }
     }
-  ],
+
+        // =================================================================
+        // GET /api/sky-chart?ra=<degrees>&dec=<degrees>&zoom=<1-6>
+        //
+        // Server-side proxy for AstronomyAPI Star Chart.
+        // ─ Credentials are read from process.env (loaded from dashboard/.env)
+        // ─ The Basic Auth header is built here in Node.js — never sent to
+        //   the browser and never visible in client-side JS or network DevTools
+        // ─ The browser only talks to localhost — no CORS issue
+        //
+        // Env vars required (set in dashboard/.env, restart dev server after):
+        //   ASTRONOMY_API_ID=your_application_id
+        //   ASTRONOMY_API_SECRET=your_application_secret
+        //
+        // Response: { imageUrl: string } | { error: string, detail?: string }
+        // =================================================================
+    ]
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
