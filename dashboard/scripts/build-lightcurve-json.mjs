@@ -3,11 +3,10 @@
  *
  * Pre-build script: converts TIC_*.csv light curve files into compact JSON
  * and copies them into  dashboard/public/data/lightcurves/<ticId>.json
+ * Also generates:
+ *   public/data/tic-ids.json        — replaces /api/tic-ids
+ *   public/data/sky-map-stars.json  — replaces /api/sky-map-stars
  * so that Vercel (static hosting) can serve them without any server middleware.
- *
- * Input priority (mirrors vite.config.ts dev-server logic):
- *   1. data/clean/lightcurves/TIC_<id>.csv   (preferred)
- *   2. data/raw/lightcurves/TIC_<id>.csv     (fallback)
  *
  * Run:  node scripts/build-lightcurve-json.mjs
  * Or via npm scripts:  npm run build  (wired as "prebuild")
@@ -79,6 +78,65 @@ function collectIds(dir) {
   );
 }
 
+/** Build sky-map-stars data from prime_targets.csv + classification overrides. */
+function buildSkyMapStars(allIds) {
+  const primeTargetsPath = path.join(REPO_ROOT, 'data', 'clean', 'prime_targets.csv');
+  const idToCoords = new Map();
+
+  if (fs.existsSync(primeTargetsPath)) {
+    const lines = fs.readFileSync(primeTargetsPath, 'utf-8').split('\n');
+    if (lines.length > 0) {
+      const headers = lines[0].split(',').map(h => h.trim());
+      const idIdx  = headers.indexOf('ID');
+      const raIdx  = headers.indexOf('ra');
+      const decIdx = headers.indexOf('dec');
+
+      if (idIdx !== -1 && raIdx !== -1 && decIdx !== -1) {
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const parts = line.split(',');
+          if (parts.length > Math.max(idIdx, raIdx, decIdx)) {
+            const idStr  = parts[idIdx].trim();
+            const raVal  = parseFloat(parts[raIdx]);
+            const decVal = parseFloat(parts[decIdx]);
+            if (idStr && !isNaN(raVal) && !isNaN(decVal)) {
+              idToCoords.set(idStr, { ra: raVal, dec: decVal });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Classification overrides — mirrors vite.config.ts and server.py
+  const overrides = {
+    '451598465':  ['Exoplanet',      0.945],
+    '2054445521': ['Binary Star',    0.982],
+    '257325189':  ['Stellar Blend',  0.714],
+    '317154919':  ['Starspot',       0.841],
+    '257738202':  ['Exoplanet',      0.885],
+  };
+  const classifications = ['Exoplanet', 'Binary Star', 'Stellar Blend', 'Starspot'];
+
+  return [...allIds].map(id => {
+    const coords = idToCoords.get(id) || {
+      ra:  (id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0) * 137.5) % 360,
+      dec: -90 + (id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0) % 10),
+    };
+
+    const digitSum = id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0);
+    let classification = classifications[digitSum % classifications.length];
+    let confidence     = 0.65 + (digitSum % 31) / 100;
+
+    if (overrides[id]) {
+      [classification, confidence] = overrides[id];
+    }
+
+    return { id, ra: coords.ra, dec: coords.dec, classification, confidence };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -89,12 +147,30 @@ const allIds   = new Set([...cleanIds, ...rawIds]);
 
 console.log(`\n🚀  build-lightcurve-json — found ${allIds.size} TIC IDs\n`);
 
-// Ensure output directory exists
+// Ensure output directories exist
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+fs.mkdirSync(path.join(DASHBOARD_ROOT, 'public', 'data'), { recursive: true });
 
+// ── 1. tic-ids.json ─────────────────────────────────────────────────────────
+const sortedIds = [...allIds].sort((a, b) => Number(a) - Number(b));
+fs.writeFileSync(
+  path.join(DASHBOARD_ROOT, 'public', 'data', 'tic-ids.json'),
+  JSON.stringify(sortedIds)
+);
+console.log(`  ✓  tic-ids.json — ${sortedIds.length} IDs`);
+
+// ── 2. sky-map-stars.json ────────────────────────────────────────────────────
+const stars = buildSkyMapStars(allIds);
+fs.writeFileSync(
+  path.join(DASHBOARD_ROOT, 'public', 'data', 'sky-map-stars.json'),
+  JSON.stringify(stars)
+);
+console.log(`  ✓  sky-map-stars.json — ${stars.length} stars\n`);
+
+// ── 3. Individual lightcurve JSON files ─────────────────────────────────────
 let ok = 0, skipped = 0, failed = 0;
 
-for (const ticId of [...allIds].sort((a, b) => Number(a) - Number(b))) {
+for (const ticId of sortedIds) {
   const outPath = path.join(OUTPUT_DIR, `${ticId}.json`);
 
   // Choose source file (clean preferred over raw)
