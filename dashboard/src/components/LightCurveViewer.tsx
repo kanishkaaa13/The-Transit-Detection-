@@ -1196,8 +1196,10 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       ) : activeTicId && data.length > 0 ? (
         // Loaded State
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Light Curve Chart Card (Left 2 cols) */}
-          <Card className="lg:col-span-2 bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md">
+          {/* Left Column (Left 2 cols) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Light Curve Chart Card */}
+            <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
                 <CardTitle className="text-xl font-bold tracking-wide text-slate-100 flex items-center gap-2">
