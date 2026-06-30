@@ -268,7 +268,7 @@ export default defineConfig(({ mode }) => {
               const today       = new Date().toISOString().split('T')[0];
               const body        = JSON.stringify({
                 style: 'navy',
-                observer: { latitude: decNum, longitude: 0, date: today },
+                observer: { latitude: -30.0, longitude: -70.0, date: today },
                 view: { type: 'area', parameters: { position: { equatorial: { rightAscension: raHours, declination: decNum } }, zoom } }
               });
               console.log(`[sky-snapshot] → RA=${raHours.toFixed(4)}h Dec=${decNum}° Zoom=${zoom}`);
@@ -367,8 +367,8 @@ export default defineConfig(({ mode }) => {
             const astroBody = JSON.stringify({
               style: 'navy',
               observer: {
-                latitude: decNum,   // center observation on target's declination
-                longitude: 0,
+                latitude: -30.0,    // fixed real latitude for southern hemisphere observer
+                longitude: -70.0,   // fixed real longitude
                 date: today,        // YYYY-MM-DD
               },
               view: {
