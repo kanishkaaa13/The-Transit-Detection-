@@ -10,7 +10,8 @@ import {
   X,
   Check,
   RotateCcw,
-  Orbit
+  Orbit,
+  Database
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,9 @@ interface StarTarget {
 interface PriorityQueueProps {
   onSelectStar: (ticId: string) => void;
 }
+
+// TOI cross-match catalog IDs to identify recovered known TOIs
+const KNOWN_TOI_IDS = new Set(['451598465', '257738202']);
 
 // Stub function returning the preloaded targets sorted by confidence descending
 export function getAllTargetsRanked(starsList: StarTarget[]): StarTarget[] {
@@ -316,6 +320,55 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
           </div>
         </Card>
       )}
+
+      {/* Summary Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-[#0b0f1e]/40 border border-slate-800/80 p-3.5 rounded-lg backdrop-blur-sm flex items-center gap-3">
+          <Database className="h-5 w-5 text-accent animate-pulse shrink-0" />
+          <div className="text-left">
+            <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Total Targets</span>
+            <strong className="text-sm md:text-md text-slate-100 font-bold font-mono">
+              {filteredStars.length}
+            </strong>
+          </div>
+        </div>
+        <div className="bg-[#0b0f1e]/40 border border-slate-800/80 p-3.5 rounded-lg backdrop-blur-sm flex items-center gap-3">
+          <Orbit className="h-5 w-5 text-emerald-450 shrink-0" />
+          <div className="text-left">
+            <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Exoplanets</span>
+            <strong className="text-sm md:text-md text-slate-100 font-bold font-mono">
+              {filteredStars.filter(s => s.classification === 'Exoplanet').length}
+            </strong>
+          </div>
+        </div>
+        <div className="bg-[#0b0f1e]/40 border border-slate-800/80 p-3.5 rounded-lg backdrop-blur-sm flex items-center gap-3">
+          <Orbit className="h-5 w-5 text-orange-450 shrink-0" />
+          <div className="text-left">
+            <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Binaries</span>
+            <strong className="text-sm md:text-md text-slate-100 font-bold font-mono">
+              {filteredStars.filter(s => s.classification === 'Binary Star').length}
+            </strong>
+          </div>
+        </div>
+        <div className="bg-[#0b0f1e]/40 border border-slate-800/80 p-3.5 rounded-lg backdrop-blur-sm flex items-center gap-3">
+          <TrendingUp className="h-5 w-5 text-violet-400 shrink-0" />
+          <div className="text-left">
+            <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">High Conf (&gt;85%)</span>
+            <strong className="text-sm md:text-md text-slate-100 font-bold font-mono">
+              {filteredStars.filter(s => s.confidence >= 0.85).length}
+            </strong>
+          </div>
+        </div>
+        <div className="bg-[#0b0f1e]/40 border border-slate-800/80 p-3.5 rounded-lg backdrop-blur-sm flex items-center gap-3 col-span-2 md:col-span-1">
+          <Check className="h-5 w-5 text-indigo-400 shrink-0" />
+          <div className="text-left">
+            <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Known TOIs</span>
+            <strong className="text-sm md:text-md text-slate-100 font-bold font-mono">
+              {filteredStars.filter(s => KNOWN_TOI_IDS.has(s.id)).length}
+            </strong>
+          </div>
+        </div>
+      </div>
 
       {/* Targets Table List Card */}
       <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden">
