@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiPath } from '../config';
 import { 
   Search, 
   Filter, 
@@ -59,7 +60,7 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
   const fetchTargets = () => {
     setLoading(true);
     setLoadError(null);
-    fetch('/api/sky-map-stars')
+    fetch(apiPath('/api/sky-map-stars'))
       .then(res => {
         if (!res.ok) throw new Error(`Failed to load target catalog (HTTP ${res.status})`);
         return res.json();

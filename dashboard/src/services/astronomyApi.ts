@@ -6,6 +6,8 @@
  * the Application Secret never appears in browser network traffic.
  */
 
+import { apiPath } from '../config';
+
 // In-memory cache keyed by TIC ID — survives React re-renders within a session
 const chartCache = new Map<string, string>();
 
@@ -26,7 +28,7 @@ export async function fetchStarChartImage(
 
   try {
     // Call the backend API route using query parameters. Default zoom for star detail is 3.
-    const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=3`;
+    const url = apiPath(`/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=3`);
     const response = await fetch(url, {
       method: 'GET',
       signal: AbortSignal.timeout(40_000), // 40-second timeout
@@ -61,7 +63,7 @@ export async function resolveStarCoords(
 ): Promise<{ ra: number; dec: number } | null> {
   try {
     if (!_starsCache) {
-      const res = await fetch('/api/sky-map-stars');
+      const res = await fetch(apiPath('/api/sky-map-stars'));
       if (!res.ok) return null;
       _starsCache = await res.json();
     }
@@ -94,7 +96,7 @@ export async function fetchMapChartImage(
 
   try {
     // Call the backend API route using query parameters.
-    const url = `/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=${encodeURIComponent(zoom.toString())}`;
+    const url = apiPath(`/api/sky-chart?ra=${encodeURIComponent(ra.toString())}&dec=${encodeURIComponent(dec.toString())}&zoom=${encodeURIComponent(zoom.toString())}`);
     const response = await fetch(url, {
       method: 'GET',
       signal: AbortSignal.timeout(40_000), // 40-second timeout
