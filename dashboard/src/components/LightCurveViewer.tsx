@@ -12,12 +12,13 @@ import {
   Search, 
   Orbit, 
   Info, 
-  CheckCircle2, 
   AlertTriangle, 
   Activity, 
   RefreshCw, 
   BarChart2, 
-  Compass
+  Compass,
+  Globe,
+  Sun
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,40 @@ export interface DetectionResult {
   period: number;
   depth: number;
   duration: number;
+  // Extended fields
+  snr: number;
+  rPlanet: number;
+  distance: number;
+  stellarAge: number;
+  inHabitableZone: boolean;
+  planetType: string;
+}
+
+// Simple planet type classification stub
+export function getPlanetTypeLabel(
+  classification: string,
+  rPlanet: number,
+  period: number
+): string {
+  if (classification !== 'Exoplanet') {
+    if (classification === 'Binary Star') return 'Eclipsing Binary';
+    if (classification === 'Stellar Blend') return 'Background Blend';
+    if (classification === 'Starspot') return 'Stellar Spot Activity';
+    return 'Stellar Signal';
+  }
+  
+  if (rPlanet >= 8) {
+    if (period < 10) return 'Hot Jupiter';
+    return 'Cold Gas Giant';
+  }
+  if (rPlanet >= 3.0 && rPlanet < 8.0) {
+    if (period < 15) return 'Hot Neptune';
+    return 'Warm Sub-Neptune';
+  }
+  if (rPlanet >= 1.25 && rPlanet < 3.0) {
+    return 'Super-Earth';
+  }
+  return 'Terrestrial (Rocky)';
 }
 
 // Mock/stub function for signal detection
@@ -64,6 +99,13 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
       let depth = 0.0015 + (numId % 40) / 1000;
       let duration = 1.2 + (digitSum % 6) * 0.4;
       let event = `TOI-${100 + (digitSum % 800)}.${(digitSum % 99).toString().padStart(2, '0')}`;
+      
+      // Default extended fields
+      let snr = 6.0 + (digitSum % 25);
+      let rPlanet = 0.8 + (numId % 120) / 10;
+      let distance = 50 + (numId % 1000);
+      let stellarAge = 1.5 + (digitSum % 8) * 0.8;
+      let inHabitableZone = (digitSum % 7) === 0;
 
       // Force realistic values for demo TIC IDs already in the repo
       if (ticId === '451598465') {
@@ -73,6 +115,11 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         period = 3.512;
         depth = 0.0035; // 3500 ppm
         duration = 2.45;
+        snr = 14.2;
+        rPlanet = 11.2; // 11.2 R_earth (Jupiter-sized)
+        distance = 120.5;
+        stellarAge = 4.2;
+        inHabitableZone = false;
       } else if (ticId === '2054445521') {
         classification = 'Binary Star';
         confidence = 0.982;
@@ -80,6 +127,11 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         period = 12.434;
         depth = 0.0820; // 8.2%
         duration = 4.8;
+        snr = 92.5;
+        rPlanet = 0;
+        distance = 840.0;
+        stellarAge = 2.1;
+        inHabitableZone = false;
       } else if (ticId === '257325189') {
         classification = 'Stellar Blend';
         confidence = 0.714;
@@ -87,6 +139,11 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         period = 1.252;
         depth = 0.0012; // 1200 ppm
         duration = 1.8;
+        snr = 5.8;
+        rPlanet = 0;
+        distance = 1450.0;
+        stellarAge = 7.3;
+        inHabitableZone = false;
       } else if (ticId === '317154919') {
         classification = 'Starspot';
         confidence = 0.841;
@@ -94,7 +151,28 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         period = 28.45;
         depth = 0.0045; // 4500 ppm
         duration = 12.2;
+        snr = 8.4;
+        rPlanet = 0;
+        distance = 245.0;
+        stellarAge = 1.1;
+        inHabitableZone = false;
+      } else if (ticId === '257738202') {
+        // Habitable Super Earth Candidate!
+        classification = 'Exoplanet';
+        confidence = 0.885;
+        event = 'TOI-843.01';
+        period = 42.52;
+        depth = 0.00042; // 420 ppm
+        duration = 3.82;
+        snr = 9.8;
+        rPlanet = 1.62; // 1.62 R_earth (Super-Earth)
+        distance = 45.2;
+        stellarAge = 6.4;
+        inHabitableZone = true;
       }
+
+      // Generate label based on parameters
+      const planetType = getPlanetTypeLabel(classification, rPlanet, period);
 
       resolve({
         event,
@@ -102,7 +180,13 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
         confidence,
         period,
         depth,
-        duration
+        duration,
+        snr,
+        rPlanet,
+        distance,
+        stellarAge,
+        inHabitableZone,
+        planetType
       });
     }, 1500);
   });
@@ -507,47 +591,50 @@ export function LightCurveViewer() {
                     </div>
 
                     {/* Detected Signal Properties */}
-                    <div className="space-y-3 p-4 bg-[#020617]/50 rounded-lg border border-slate-900/60">
-                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    {/* Parameters Stat Cards Grid */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <BarChart2 className="h-3.5 w-3.5 text-cyan-400" />
-                        Parameters
+                        Stellar & Planet Parameters
                       </h4>
-                      <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div>
-                          <span className="text-slate-500 block mb-0.5">Orbital Period</span>
-                          <span className="font-mono text-slate-200 text-sm font-medium">
-                            {detectionResult.period.toFixed(4)} days
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Orbital Period</span>
+                          <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
+                            {detectionResult.period.toFixed(4)} <span className="text-[10px] text-slate-500 font-sans">days</span>
                           </span>
                         </div>
-                        <div>
-                          <span className="text-slate-500 block mb-0.5">Transit Depth</span>
-                          <span className="font-mono text-slate-200 text-sm font-medium">
-                            {(detectionResult.depth * 100).toFixed(4)}%
-                            <span className="text-[10px] text-slate-500 block">
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Transit Depth</span>
+                          <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
+                            {(detectionResult.depth * 100).toFixed(4)}% 
+                            <span className="text-[9px] text-slate-500 font-sans block">
                               ({(detectionResult.depth * 1e6).toFixed(0)} ppm)
                             </span>
                           </span>
                         </div>
-                        <div>
-                          <span className="text-slate-500 block mb-0.5">Duration</span>
-                          <span className="font-mono text-slate-200 text-sm font-medium">
-                            {detectionResult.duration.toFixed(2)} hours
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Transit Duration</span>
+                          <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
+                            {detectionResult.duration.toFixed(2)} <span className="text-[10px] text-slate-500 font-sans">hours</span>
                           </span>
                         </div>
-                        <div>
-                          <span className="text-slate-500 block mb-0.5">Status</span>
-                          <span className="text-slate-300 font-medium flex items-center gap-1 text-[11px] mt-0.5">
-                            {detectionResult.classification === 'Exoplanet' ? (
-                              <>
-                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                                Prime Candidate
-                              </>
-                            ) : (
-                              <>
-                                <Info className="h-3 w-3 text-slate-400" />
-                                Screened Out
-                              </>
-                            )}
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Estimated Planet Size</span>
+                          <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
+                            {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
+                          <span className="text-[10px] text-slate-500 font-medium">Distance</span>
+                          <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
+                            {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-500 font-sans">ly</span>
+                          </span>
+                        </div>
+                        <div className="p-3 bg-[#020617]/40 rounded-lg border border-[#38bdf8]/10 bg-sky-950/5 flex flex-col justify-between shadow-[0_0_15px_rgba(56,189,248,0.02)]">
+                          <span className="text-[10px] text-sky-400/80 font-medium">Signal SNR</span>
+                          <span className="font-mono text-sky-300 text-sm font-bold mt-1">
+                            {detectionResult.snr.toFixed(1)}
                           </span>
                         </div>
                       </div>
@@ -580,6 +667,75 @@ export function LightCurveViewer() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Habitability Card - Rendered conditionally when detection results exist */}
+            {detectionResult && (
+              <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-3 duration-500">
+                <CardHeader className="pb-3 border-b border-slate-800/60">
+                  <CardTitle className="text-md font-semibold tracking-wide text-slate-100 flex items-center gap-2">
+                    <Globe className="h-4.5 w-4.5 text-emerald-400" />
+                    Habitability Profile
+                  </CardTitle>
+                  <CardDescription className="text-slate-400 text-[11px]">
+                    Stellar habitable zone and planet properties evaluation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-5 space-y-4">
+                  {/* HZ Status Indicator block */}
+                  <div className={`p-4 rounded-lg border flex items-center gap-4 transition-all ${
+                    detectionResult.inHabitableZone 
+                      ? 'bg-emerald-950/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]' 
+                      : 'bg-slate-900/30 border-slate-850 text-slate-400'
+                  }`}>
+                    {detectionResult.inHabitableZone ? (
+                      <>
+                        <div className="p-2 bg-emerald-500/10 rounded-full border border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.15)] animate-pulse">
+                          <Globe className="h-6 w-6 text-emerald-400" />
+                        </div>
+                        <div>
+                          <strong className="text-xs uppercase tracking-wider block font-semibold">Habitable Zone</strong>
+                          <span className="text-sm font-bold text-emerald-300">IN HZ: YES</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-2 bg-slate-800/30 rounded-full border border-slate-800/30">
+                          <Sun className="h-6 w-6 text-slate-500" />
+                        </div>
+                        <div>
+                          <strong className="text-xs uppercase tracking-wider block font-medium">Habitable Zone</strong>
+                          <span className="text-sm font-bold text-slate-400">IN HZ: NO</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-900/50">
+                      <span className="text-slate-500">Planet Designation Type</span>
+                      <Badge className="bg-indigo-950/20 text-indigo-300 border-indigo-500/20 text-[10px] font-semibold">
+                        {detectionResult.planetType}
+                      </Badge>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 border-b border-slate-900/50">
+                      <span className="text-slate-500">Stellar Age Estimate</span>
+                      <span className="text-slate-300 font-medium font-mono">
+                        {detectionResult.stellarAge.toFixed(1)} <span className="text-[10px] text-slate-500">Gyr</span>
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-slate-500">Distance</span>
+                      <span className="text-slate-300 font-medium font-mono">
+                        {detectionResult.distance.toFixed(1)} <span className="text-[10px] text-slate-500">ly</span>
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Science Guide card */}
             <Card className="bg-[#0f172a]/20 border-slate-850">
