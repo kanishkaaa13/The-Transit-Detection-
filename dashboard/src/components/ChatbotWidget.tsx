@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  MessageSquare, 
   X, 
   Send, 
-  ArrowRight, 
-  Bot, 
-  Terminal
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -194,10 +191,12 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 p-4 rounded-full bg-indigo-650 hover:bg-indigo-500 text-white shadow-2xl z-40 transition-all active:scale-95 flex items-center gap-2 group border border-indigo-400/25 glow-accent-purple"
+          className="fixed bottom-6 right-6 p-1.5 rounded-full bg-[#0a0e1a] hover:bg-slate-900 text-white shadow-2xl z-40 transition-all active:scale-95 flex items-center gap-2 group border border-indigo-500/40 glow-accent-purple overflow-hidden"
         >
-          <MessageSquare className="h-5 w-5 text-white" />
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-out text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
+          <div className="h-10 w-10 rounded-full overflow-hidden border border-indigo-500/30 bg-[#070b19] relative shrink-0">
+            <img src="/astra-avatar.jpg" alt="Astra Bot" className="w-full h-full object-cover" />
+          </div>
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:pr-3 transition-all duration-300 ease-out text-xs font-semibold uppercase tracking-wider whitespace-nowrap text-indigo-350">
             Astra Assistant
           </span>
         </button>
@@ -210,8 +209,8 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
           {/* Header */}
           <div className="p-3.5 bg-gradient-to-r from-indigo-950/40 via-indigo-900/20 to-transparent border-b border-slate-800/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center">
-                <Bot className="h-4.5 w-4.5 text-indigo-400" />
+              <div className="h-8 w-8 rounded-full border border-indigo-500/30 overflow-hidden flex items-center justify-center bg-[#070b19]">
+                <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-100 tracking-wide">Astra</h4>
@@ -229,69 +228,78 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
           {/* Conversation History */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4 scrollbar text-xs">
             {messages.map((msg, idx) => (
-              <div key={idx} className="space-y-1.5">
+              <div key={idx} className="space-y-1">
                 <div 
-                  className={`flex flex-col max-w-[85%] ${
-                    msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
+                  className={`flex gap-2 max-w-[85%] ${
+                    msg.sender === 'user' ? 'ml-auto flex-row-reverse items-end' : 'mr-auto flex-row items-start'
                   }`}
                 >
-                  <div 
-                    className={`p-3 rounded-xl leading-relaxed ${
-                      msg.sender === 'user' 
-                        ? 'bg-indigo-650 text-white rounded-tr-none' 
-                        : 'bg-[#0f172a] border border-slate-850 text-slate-300 rounded-tl-none'
-                    }`}
-                  >
-                    {/* Render message line breaks correctly */}
-                    {msg.text.split('\n').map((line, lIdx) => (
-                      <React.Fragment key={lIdx}>
-                        {line}
-                        {lIdx < msg.text.split('\n').length - 1 && <br />}
-                      </React.Fragment>
-                    ))}
+                  {msg.sender === 'assistant' && (
+                    <div className="h-6 w-6 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                      <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <div 
+                      className={`p-3 rounded-xl leading-relaxed ${
+                        msg.sender === 'user' 
+                          ? 'bg-indigo-650 text-white rounded-tr-none' 
+                          : 'bg-[#0f172a] border border-slate-850 text-slate-300 rounded-tl-none'
+                      }`}
+                    >
+                      {/* Render message line breaks correctly */}
+                      {msg.text.split('\n').map((line, lIdx) => (
+                        <React.Fragment key={lIdx}>
+                          {line}
+                          {lIdx < msg.text.split('\n').length - 1 && <br />}
+                        </React.Fragment>
+                      ))}
 
-                    {/* Integrated actions buttons */}
-                    {msg.actions && msg.actions.length > 0 && (
-                      <div className="mt-3 space-y-2 border-t border-slate-800/40 pt-2.5">
-                        {msg.actions.map((act, aIdx) => (
-                          <button
-                            key={aIdx}
-                            onClick={() => {
-                              act.onClick();
-                              setIsOpen(false); // minimize chatbot on active navigation click
-                            }}
-                            className="w-full flex items-center justify-between text-[10px] text-indigo-300 hover:text-white bg-indigo-500/5 hover:bg-indigo-500/15 border border-indigo-500/25 px-2.5 py-1.5 rounded transition-all font-sans font-medium"
-                          >
-                            <span>{act.label}</span>
-                            <ArrowRight className="h-3 w-3 shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      {/* Integrated actions buttons */}
+                      {msg.actions && msg.actions.length > 0 && (
+                        <div className="mt-3 space-y-2 border-t border-slate-800/40 pt-2.5">
+                          {msg.actions.map((act, aIdx) => (
+                            <button
+                              key={aIdx}
+                              onClick={() => {
+                                act.onClick();
+                                setIsOpen(false); // minimize chatbot on active navigation click
+                              }}
+                              className="w-full flex items-center justify-between text-[10px] text-indigo-300 hover:text-white bg-indigo-500/5 hover:bg-indigo-500/15 border border-indigo-500/25 px-2.5 py-1.5 rounded transition-all font-sans font-medium"
+                            >
+                              <span>{act.label}</span>
+                              <ArrowRight className="h-3 w-3 shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[8px] text-slate-650 uppercase tracking-wider font-semibold font-mono mt-1 px-1">
+                      {msg.sender === 'user' ? (
+                        <>Scientist · {msg.timestamp}</>
+                      ) : (
+                        <>Astra · {msg.timestamp}</>
+                      )}
+                    </span>
                   </div>
-                  <span className="text-[8px] text-slate-650 uppercase tracking-wider font-semibold font-mono flex items-center gap-1 mt-0.5">
-                    {msg.sender === 'user' ? (
-                      <>Scientist · {msg.timestamp}</>
-                    ) : (
-                      <>
-                        <Terminal className="h-2.5 w-2.5 text-indigo-400/70" />
-                        Astra · {msg.timestamp}
-                      </>
-                    )}
-                  </span>
                 </div>
               </div>
             ))}
 
             {/* Typing indicator */}
             {isThinking && (
-              <div className="flex flex-col max-w-[85%] mr-auto items-start animate-pulse">
-                <div className="p-3 bg-[#0f172a] border border-slate-850 rounded-xl rounded-tl-none flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-100" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-200" />
+              <div className="flex gap-2 max-w-[85%] mr-auto items-start animate-pulse">
+                <div className="h-6 w-6 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5">
+                  <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
                 </div>
-                <span className="text-[8px] text-slate-650 mt-0.5 uppercase tracking-wider font-semibold font-mono">Thinking…</span>
+                <div className="flex flex-col">
+                  <div className="p-3 bg-[#0f172a] border border-slate-850 rounded-xl rounded-tl-none flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-100" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-200" />
+                  </div>
+                  <span className="text-[8px] text-slate-650 mt-1 px-1 uppercase tracking-wider font-semibold font-mono">Thinking…</span>
+                </div>
               </div>
             )}
 

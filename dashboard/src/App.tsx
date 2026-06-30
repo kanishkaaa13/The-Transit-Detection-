@@ -525,7 +525,7 @@ function App() {
       {/* =================================================================
           FEATURE 5 COMPONENT: Keyboard shortcuts overlay & floating trigger button
           ================================================================= */}
-      <div className="fixed bottom-6 right-20 flex items-center gap-2 z-50">
+      <div className="fixed bottom-6 left-6 flex items-center gap-2 z-50">
         <button 
           onClick={() => setShowShortcutsHelp(prev => !prev)}
           title="Keyboard Shortcuts Guide"
