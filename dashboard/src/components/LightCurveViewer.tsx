@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { SkySnapshot } from '@/components/SkySnapshot';
 
 // ---------------------------------------------------------
 // Types & Signatures
@@ -1332,6 +1333,9 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                         </div>
                       </div>
                     </div>
+
+                    {/* Sky Snapshot Thumbnail */}
+                    <SkySnapshot ticId={activeTicId} />
 
                     {/* AI Reasoning Panel */}
                     {reasoning && (
