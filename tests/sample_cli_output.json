@@ -1,0 +1,26 @@
+[
+  {
+    "tic_id": "TIC123",
+    "event": "noise",
+    "confidence": 0.69,
+    "period": 3.0,
+    "depth": 0.01,
+    "r_planet": 1.0,
+    "a": 100.0,
+    "in_hz": 3.0,
+    "snr": 20.0,
+    "heuristic_flags": {
+      "blend_eb": false,
+      "density": false,
+      "radius_eb": false,
+      "secondary_eclipse": false,
+      "odd_even_depth": false
+    },
+    "ml_probabilities": {
+      "planet": 0.05,
+      "EB": 0.15,
+      "blend": 0.11,
+      "noise": 0.69
+    }
+  }
+]
