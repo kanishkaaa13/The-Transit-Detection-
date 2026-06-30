@@ -600,6 +600,11 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
   });
 }
 
+interface LightCurveViewerProps {
+  selectedStarId?: string;
+  onSelectStar?: (id: string) => void;
+}
+
 export function LightCurveViewer({ selectedStarId, onSelectStar }: LightCurveViewerProps) {
   const { addToast } = useToast();
   // Selection and searching
@@ -1889,19 +1894,47 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
           </div>
         </div>
       ) : (
-        // Empty State: Before search/load
-        <Card className="bg-[#0f172a]/20 border-slate-800 border-dashed py-16 text-center">
-          <CardContent className="space-y-4">
-            <Orbit className="h-20 w-20 text-indigo-500/20 mx-auto pulsar" />
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-slate-300">Explore the TESS Datasets</h3>
-              <p className="text-sm text-slate-400 max-w-sm mx-auto">
-                Enter a TIC ID above or select one from the discovered catalog to view the light curve and detect planet transits.
+        // Empty State: Before search/load — illustrated with orbit ring + activity icon
+        <Card className="bg-[#0f172a]/20 border-slate-800 border-dashed py-20 text-center overflow-hidden relative">
+          {/* Subtle background glow */}
+          <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/10 via-transparent to-transparent pointer-events-none" />
+          <CardContent className="space-y-6 relative z-10">
+            {/* Icon cluster */}
+            <div className="relative mx-auto w-24 h-24">
+              {/* Outer ring */}
+              <div className="absolute inset-0 rounded-full border border-indigo-500/10" />
+              <div className="absolute inset-2 rounded-full border border-indigo-500/15" />
+              {/* Orbit icon spinning */}
+              <div className="absolute inset-4 rounded-full bg-indigo-500/5 flex items-center justify-center">
+                <Orbit className="h-10 w-10 text-indigo-400/30 animate-spin" style={{ animationDuration: '8s' }} />
+              </div>
+              {/* Activity icon floating */}
+              <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[#0f172a] border border-slate-800 flex items-center justify-center">
+                <Activity className="h-4 w-4 text-cyan-400/50" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-base font-bold text-slate-300 tracking-wide">Awaiting Target Selection</h3>
+              <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Enter a TIC ID or select one from the catalog dropdown to load the photometry light curve and run transit detection.
               </p>
+            </div>
+            {/* Hint badges */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              <span className="text-[10px] font-mono text-indigo-400/60 bg-indigo-500/5 border border-indigo-500/10 px-2.5 py-1 rounded-full">
+                BLS Periodogram
+              </span>
+              <span className="text-[10px] font-mono text-cyan-400/60 bg-cyan-500/5 border border-cyan-500/10 px-2.5 py-1 rounded-full">
+                1D CNN Classifier
+              </span>
+              <span className="text-[10px] font-mono text-emerald-400/60 bg-emerald-500/5 border border-emerald-500/10 px-2.5 py-1 rounded-full">
+                Habitability Profile
+              </span>
             </div>
           </CardContent>
         </Card>
       )}
+
 
       {/* Floating AI Chat Trigger Button */}
       <button 
