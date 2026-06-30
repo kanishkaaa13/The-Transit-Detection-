@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ResponsiveContainer, 
   ScatterChart, 
@@ -23,9 +23,9 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  Key
+  AlertTriangle
 } from 'lucide-react';
-import { fetchSkyMapImage } from '@/services/nasaSkyView';
+import { fetchMapChartImage } from '@/services/astronomyApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -56,12 +56,9 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [scaleBySize, setScaleBySize] = useState<boolean>(false);
   const [selectedPopoverStar, setSelectedPopoverStar] = useState<SkyStar | null>(null);
 
-  // NASA SkyView integration
-  const [nasaApiKey, setNasaApiKey] = useState<string>('');
-  const [showApiKeyInput, setShowApiKeyInput] = useState<boolean>(false);
-  const [skyBgUrl, setSkyBgUrl] = useState<string | null>(null);
-  const [nasaStatus, setNasaStatus] = useState<'loading' | 'online' | 'offline' | 'idle'>('idle');
-  const skyFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // AstronomyAPI sky map background
+  const [mapBgUrl, setMapBgUrl] = useState<string | null>(null);
+  const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'online' | 'error'>('idle');
 
   // Colors mapping for classifications
   const colors = {
@@ -174,40 +171,18 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     }
   };
 
-  // Debounced NASA SkyView background fetch — called whenever RA/Dec domain or API key changes
-  const fetchSkyBackground = useCallback(() => {
-    if (skyFetchTimer.current) clearTimeout(skyFetchTimer.current);
-    skyFetchTimer.current = setTimeout(async () => {
-      const raMid = (raDomain[0] + raDomain[1]) / 2;
-      const decMid = (decDomain[0] + decDomain[1]) / 2;
-      const raFov = raDomain[1] - raDomain[0];
-      const decFov = Math.abs(decDomain[1] - decDomain[0]);
-      const fov = Math.max(raFov, decFov);
-
-      if (fov > 15) {
-        // Too wide for SkyView — use synthetic background
-        setSkyBgUrl(null);
-        setNasaStatus('idle');
-        return;
-      }
-
-      setNasaStatus('loading');
-      const url = await fetchSkyMapImage({ ra: raMid, dec: decMid, fov, apiKey: nasaApiKey || undefined });
-      if (url) {
-        setSkyBgUrl(url);
-        setNasaStatus('online');
-      } else {
-        setSkyBgUrl(null);
-        setNasaStatus('offline');
-      }
-    }, 600);
-  }, [raDomain, decDomain, nasaApiKey]);
-
-  // Trigger a new background fetch whenever the viewport changes
+  // Fetch AstronomyAPI background once on mount — centered on southern polar region
   useEffect(() => {
-    fetchSkyBackground();
-    return () => { if (skyFetchTimer.current) clearTimeout(skyFetchTimer.current); };
-  }, [fetchSkyBackground]);
+    setMapStatus('loading');
+    fetchMapChartImage(0, -87, 1).then(url => {
+      if (url) {
+        setMapBgUrl(url);
+        setMapStatus('online');
+      } else {
+        setMapStatus('error');
+      }
+    });
+  }, []);
 
   // Custom Dot shape mapping highlight opacity and toggled confidence scale sizes
   const renderCustomDot = (props: any) => {
@@ -272,37 +247,31 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               </div>
             </div>
 
-            {/* NASA Status Badge */}
+            {/* AstronomyAPI Sky Chart Status */}
             <div className="flex items-center gap-2">
-              {nasaStatus === 'online' && (
+              {mapStatus === 'online' && (
                 <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-full">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  NASA SkyView: ONLINE
+                  AstronomyAPI: LIVE
                 </span>
               )}
-              {nasaStatus === 'offline' && (
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-1 rounded-full">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                  NASA SkyView: OFFLINE
-                </span>
-              )}
-              {nasaStatus === 'loading' && (
+              {mapStatus === 'loading' && (
                 <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded-full">
                   <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping" />
-                  Fetching Sky Map...
+                  Fetching Star Chart…
                 </span>
               )}
-              {nasaStatus === 'idle' && (
+              {mapStatus === 'error' && (
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-1 rounded-full">
+                  <AlertTriangle className="h-3 w-3" />
+                  Chart Unavailable — Check .env credentials
+                </span>
+              )}
+              {mapStatus === 'idle' && (
                 <span className="flex items-center gap-1.5 text-[10px] text-slate-600 px-2 py-1 rounded-full border border-slate-800">
-                  Synthetic Starfield (Zoom In for Real Map)
+                  Awaiting star chart…
                 </span>
               )}
-              <button
-                onClick={() => setShowApiKeyInput(v => !v)}
-                className="text-[10px] text-indigo-400 hover:text-indigo-300 border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 rounded-full transition-colors"
-              >
-                {showApiKeyInput ? 'Hide' : 'NASA API Key'}
-              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -336,26 +305,6 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
             </div>
           </div>
 
-          {/* Optional NASA API Key input */}
-          {showApiKeyInput && (
-            <div className="mt-4 flex items-center gap-3 p-3 bg-[#020617]/50 rounded-lg border border-indigo-500/20 animate-in slide-in-from-top-2 duration-200">
-              <Key className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-              <div className="flex-1">
-                <input
-                  type="password"
-                  placeholder="Paste your NASA API key here (optional — SkyView works without it)"
-                  value={nasaApiKey}
-                  onChange={(e) => setNasaApiKey(e.target.value)}
-                  className="w-full bg-transparent text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none font-mono"
-                />
-              </div>
-              {nasaApiKey && (
-                <button onClick={() => setNasaApiKey('')} className="text-[10px] text-slate-500 hover:text-rose-400 transition-colors">
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -469,12 +418,12 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                   </div>
                 )}
 
-                {/* Recharts Scatter chart viewport with optional NASA sky background */}
+                {/* Recharts Scatter chart viewport with AstronomyAPI sky background */}
                 <div
                   className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden"
-                  style={skyBgUrl ? {
-                    backgroundImage: `url('${skyBgUrl}')`,
-                    backgroundSize: '100% 100%',
+                  style={mapBgUrl ? {
+                    backgroundImage: `url('${mapBgUrl}')`,
+                    backgroundSize: 'cover',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center'
                   } : {}}
