@@ -229,3 +229,33 @@
   );
   background-size: 200% 100%;
 }
+
+/* -------------------------------------------------------
+   SKELETON SHIMMER — richer sweep for skeleton loaders
+   ------------------------------------------------------- */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0)       0%,
+    rgba(99, 102, 241, 0.07) 50%,
+    rgba(15, 23, 42, 0)      100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.8s infinite linear;
+}
+
+/* -------------------------------------------------------
+   SCROLL SHADOW — hints at overflow in scrollable lists
+   ------------------------------------------------------- */
+.scroll-shadow-top {
+  background: linear-gradient(to bottom, #0c1120 0%, transparent 100%);
+}
+
+.scroll-shadow-bottom {
+  background: linear-gradient(to top, #0c1120 0%, transparent 100%);
+}

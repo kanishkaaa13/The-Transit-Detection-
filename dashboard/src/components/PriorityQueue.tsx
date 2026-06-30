@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { 
   Search, 
   Filter, 
-  ArrowUpDown, 
   AlertTriangle, 
   ChevronRight, 
   TrendingUp,
   Scale,
   X,
-  Check
+  Check,
+  RotateCcw,
+  Orbit
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,7 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
   const [rankedStars, setRankedStars] = useState<StarTarget[]>([]);
   const [filteredStars, setFilteredStars] = useState<StarTarget[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [minConfidence, setMinConfidence] = useState<number>(60); // min confidence in %
@@ -54,21 +56,31 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
     'Starspot': 'bg-sky-500/10 text-sky-400 border-sky-500/20'
   };
 
-  useEffect(() => {
+  const fetchTargets = () => {
     setLoading(true);
+    setLoadError(null);
     fetch('/api/sky-map-stars')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to load target catalog (HTTP ${res.status})`);
+        return res.json();
+      })
       .then((data: StarTarget[]) => {
         const ranked = getAllTargetsRanked(data);
         setRankedStars(ranked);
         setFilteredStars(ranked);
       })
-      .catch(err => {
-        console.error("Error loading targets for queue:", err);
+      .catch((err: Error) => {
+        console.error('PriorityQueue: fetch failed:', err);
+        setLoadError(err.message ?? 'Failed to load the target catalog. Check your connection and try again.');
       })
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchTargets();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter lists based on search, classification type, and minimum confidence threshold
@@ -317,15 +329,108 @@ export function PriorityQueue({ onSelectStar }: PriorityQueueProps) {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="text-center py-20">
-              <ArrowUpDown className="h-8 w-8 text-accent animate-spin mx-auto mb-4" />
-              <p className="text-xs text-slate-500">Ranking candidates catalog...</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-[#070a14]/60 text-slate-400 font-semibold">
+                    <th className="py-3.5 px-6 select-none w-12 text-center">Compare</th>
+                    <th className="py-3.5 px-4 font-mono">Vetting Rank</th>
+                    <th className="py-3.5 px-6 font-mono">TIC Target ID</th>
+                    <th className="py-3.5 px-6">Classification</th>
+                    <th className="py-3.5 px-6 font-mono">Confidence</th>
+                    <th className="py-3.5 px-6">Vetting Priority</th>
+                    <th className="py-3.5 px-6 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-900/40">
+                  {[...Array(5)].map((_, i) => (
+                    <tr key={i} className="border-b border-slate-900/30">
+                      <td className="py-4 px-6 text-center">
+                        <div className="h-4.5 w-4.5 mx-auto rounded border border-slate-800 skeleton" style={{ animationDelay: `${i * 0.05}s` }} />
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="h-3.5 w-8 rounded skeleton" style={{ animationDelay: `${i * 0.05 + 0.05}s` }} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-4 w-24 rounded skeleton font-mono" style={{ animationDelay: `${i * 0.05 + 0.1}s` }} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-4.5 w-20 rounded skeleton" style={{ animationDelay: `${i * 0.05 + 0.15}s` }} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-4 w-12 rounded skeleton font-mono" style={{ animationDelay: `${i * 0.05 + 0.2}s` }} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-4.5 w-16 rounded skeleton" style={{ animationDelay: `${i * 0.05 + 0.25}s` }} />
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="h-4 w-4 ml-auto rounded skeleton" style={{ animationDelay: `${i * 0.05 + 0.3}s` }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : loadError ? (
+            // Fetch error state with retry
+            <div className="py-20 px-8 space-y-4 text-center relative overflow-hidden">
+              <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+                {/* Outer ring */}
+                <div className="absolute inset-0 rounded-full border border-rose-500/10" />
+                <div className="absolute inset-2 rounded-full border border-rose-500/15" />
+                <div className="absolute inset-4 rounded-full bg-rose-500/5 flex items-center justify-center">
+                  <Orbit className="h-8 w-8 text-rose-500/20 animate-spin" style={{ animationDuration: '6s' }} />
+                </div>
+                <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#0f172a] border border-rose-500/25 flex items-center justify-center">
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-rose-300">Catalog Load Failed</h4>
+                <p className="text-xs text-slate-550 max-w-xs mx-auto leading-relaxed">{loadError}</p>
+              </div>
+              <button
+                onClick={fetchTargets}
+                className="mx-auto flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all active:scale-95 cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Retry
+              </button>
             </div>
           ) : filteredStars.length === 0 ? (
-            <div className="text-center py-20 space-y-2">
-              <AlertTriangle className="h-10 w-10 text-slate-600 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-450">No targets fit screening criteria</h4>
-              <p className="text-xs text-slate-500">Try lowering the confidence filter or clearing search fields.</p>
+            // Empty state — no targets match the current filters
+            <div className="py-16 px-8 space-y-4 text-center relative overflow-hidden">
+              <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+                {/* Outer ring */}
+                <div className="absolute inset-0 rounded-full border border-slate-700/10" />
+                <div className="absolute inset-2 rounded-full border border-slate-700/15" />
+                <div className="absolute inset-4 rounded-full bg-slate-800/10 flex items-center justify-center">
+                  <Orbit className="h-8 w-8 text-slate-500/30 animate-spin" style={{ animationDuration: '8s' }} />
+                </div>
+                <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#0f172a] border border-slate-700/30 flex items-center justify-center">
+                  <Filter className="h-3.5 w-3.5 text-slate-400" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-bold text-slate-400">No targets match this confidence threshold</h4>
+                <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                  {searchQuery
+                    ? `No results for TIC "${searchQuery}"`
+                    : typeFilter !== 'all'
+                    ? `No ${typeFilter} targets at ≥${minConfidence}% confidence`
+                    : `No targets at ≥${minConfidence}% confidence`
+                  }
+                </p>
+              </div>
+              {(searchQuery || typeFilter !== 'all' || minConfidence > 0) && (
+                <button
+                  onClick={() => { setSearchQuery(''); setTypeFilter('all'); setMinConfidence(60); }}
+                  className="mx-auto flex items-center gap-2 px-4 py-2 bg-transparent border border-slate-750 hover:border-indigo-500 text-slate-300 hover:text-indigo-300 text-xs font-medium rounded-lg transition-all cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
