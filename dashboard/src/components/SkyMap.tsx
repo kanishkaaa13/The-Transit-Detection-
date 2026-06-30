@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   ResponsiveContainer, 
   ScatterChart, 
   Scatter, 
   XAxis, 
-  YAxis, 
-  Tooltip, 
-  CartesianGrid
+  YAxis
 } from 'recharts';
 import { 
   Compass, 
@@ -15,14 +13,7 @@ import {
   Orbit,
   Star,
   RefreshCw,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   ChevronRight,
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
   AlertTriangle
 } from 'lucide-react';
 import { fetchMapChartImage } from '@/services/astronomyApi';
@@ -56,10 +47,16 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [scaleBySize, setScaleBySize] = useState<boolean>(false);
   const [selectedPopoverStar, setSelectedPopoverStar] = useState<SkyStar | null>(null);
 
-  // Center coordinate state & zoom level (1 = widest to 6 = narrowest, default 4 for closer look)
+  // Center coordinate state & zoom level (1 = widest to 6 = narrowest, default 2 for wider initial view)
   const [centerRa, setCenterRa] = useState<number>(0);
   const [centerDec, setCenterDec] = useState<number>(-87);
-  const [zoom, setZoom] = useState<number>(4);
+  const [zoom, setZoom] = useState<number>(2);
+
+  // Mouse drag panning and scroll zoom states & refs
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const startCenter = useRef({ ra: 0, dec: 0 });
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   // AstronomyAPI sky map background
   const [mapBgUrl, setMapBgUrl] = useState<string | null>(null);
@@ -190,37 +187,65 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     }
   }, [selectedPopoverStar]);
 
-  // Zoom handlers
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(6, prev + 1));
+  // Native mouse wheel listener on mapContainerRef to zoom in/out cleanly and prevent default page scroll
+  useEffect(() => {
+    const element = mapContainerRef.current;
+    if (!element) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        // scroll up: zoom in
+        setZoom(prev => Math.min(6, prev + 1));
+      } else {
+        // scroll down: zoom out
+        setZoom(prev => Math.max(1, prev - 1));
+      }
+    };
+
+    element.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, [zoom]);
+
+  // Click-drag panning handlers
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    startCenter.current = { ra: centerRa, dec: centerDec };
   };
 
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(1, prev - 1));
-  };
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const W = rect.width || 1;
+    const H = rect.height || 1;
 
-  const handleResetZoom = () => {
-    setZoom(4);
-    setCenterRa(0);
-    setCenterDec(-87);
-  };
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
 
-  // Pan handlers — pan shifts the center coordinate by 25% of the visible FOV range
-  const handlePan = (direction: 'up' | 'down' | 'left' | 'right') => {
-    const level = zoomLevels[zoom] || zoomLevels[4];
+    const level = zoomLevels[zoom] || zoomLevels[2];
     const fov = level.fov;
     const cosDec = Math.cos((centerDec * Math.PI) / 180);
     const raSpan = Math.min(360, fov / (cosDec > 0.01 ? cosDec : 0.01));
 
-    if (direction === 'left') {
-      setCenterRa(prev => Math.max(0, prev - raSpan * 0.25));
-    } else if (direction === 'right') {
-      setCenterRa(prev => Math.min(360, prev + raSpan * 0.25));
-    } else if (direction === 'down') {
-      setCenterDec(prev => Math.max(-90, prev - fov * 0.25));
-    } else if (direction === 'up') {
-      setCenterDec(prev => Math.min(-80, prev + fov * 0.25));
-    }
+    // RA mapping: drag right shifts map left (reducing RA), drag left shifts map right (increasing RA)
+    let newRa = startCenter.current.ra - (dx / W) * raSpan;
+    if (newRa < 0) newRa = 0;
+    if (newRa > 360) newRa = 360;
+
+    // Dec mapping: drag down shifts map north (increasing Dec), drag up shifts map south (decreasing Dec)
+    let newDec = startCenter.current.dec + (dy / H) * fov;
+    if (newDec < -90) newDec = -90;
+    if (newDec > -80) newDec = -80;
+
+    setCenterRa(newRa);
+    setCenterDec(newDec);
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
   };
 
   // Popover details navigation click
@@ -391,48 +416,11 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                 <p className="text-xs text-slate-500">Mapping celestial target catalog...</p>
               </div>
             ) : (
-              <div className="relative w-full flex-1 flex flex-col justify-between">
+              <div className="relative w-full flex-1 flex flex-col justify-between select-none">
                 
-                {/* SVG Zoom & Pan Controls Overlay (top-left) */}
-                <div className="absolute top-0 left-0 z-10 flex flex-col gap-2 bg-[#020617]/60 p-2.5 rounded-lg border border-slate-800 backdrop-blur-sm">
-                  <span className="text-[9px] text-slate-550 font-bold uppercase tracking-wider block text-center mb-1">Controls</span>
-                  <div className="flex gap-1.5">
-                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleZoomIn} title="Zoom In">
-                      <ZoomIn className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleZoomOut} title="Zoom Out">
-                      <ZoomOut className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="secondary" className="h-7 w-7 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white" onClick={handleResetZoom} title="Reset Scope">
-                      <Maximize2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-
-                  {/* Pan buttons compass pad */}
-                  <div className="grid grid-cols-3 gap-1 mt-2 mx-auto w-[85px]">
-                    <div />
-                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('up')}>
-                      <ArrowUp className="h-3 w-3" />
-                    </Button>
-                    <div />
-                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('left')}>
-                      <ArrowLeft className="h-3 w-3" />
-                    </Button>
-                    <div className="h-6 w-6 rounded bg-[#020617]/45 border border-slate-900 flex items-center justify-center text-[8px] text-slate-600 font-bold">PAN</div>
-                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('right')}>
-                      <ArrowRight className="h-3 w-3" />
-                    </Button>
-                    <div />
-                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white" onClick={() => handlePan('down')}>
-                      <ArrowDown className="h-3 w-3" />
-                    </Button>
-                    <div />
-                  </div>
-                </div>
-
                 {/* Floating Inspector Popover (bottom-left) */}
                 {selectedPopoverStar && (
-                  <div className="absolute bottom-0 left-0 z-10 w-60 bg-[#020617]/95 border border-slate-850 p-3.5 rounded-lg shadow-2xl space-y-2.5 backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
+                  <div className="absolute bottom-4 left-4 z-30 w-60 bg-[#020617]/95 border border-slate-850 p-3.5 rounded-lg shadow-2xl space-y-2.5 backdrop-blur-md animate-in slide-in-from-bottom-2 duration-300">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-semibold font-mono">SELECTED STAR</span>
@@ -464,65 +452,48 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                   </div>
                 )}
 
-                {/* Recharts Scatter chart viewport with AstronomyAPI sky background */}
+                {/* Recharts Scatter chart viewport with AstronomyAPI sky background and mouse handlers */}
                 <div
-                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden"
+                  ref={mapContainerRef}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUpOrLeave}
+                  onMouseLeave={handleMouseUpOrLeave}
+                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden transition-all"
                   style={mapBgUrl ? {
                     backgroundImage: `url('${mapBgUrl}')`,
                     backgroundSize: 'cover',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: 'center',
+                    cursor: isDragging ? 'grabbing' : 'grab',
                     transition: 'background-image 0.5s ease-in-out'
-                  } : {}}
+                  } : {
+                    cursor: isDragging ? 'grabbing' : 'grab'
+                  }}
                 >
-                  {/* Loading spinner overlay */}
+                  {/* Subtle Shimmer loading overlay (Feature 6) */}
                   {mapStatus === 'loading' && (
-                    <div className="absolute inset-0 bg-[#020617]/70 backdrop-blur-xs flex flex-col items-center justify-center z-20 pointer-events-none transition-all duration-350">
-                      <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mb-2" />
-                      <span className="text-xs text-indigo-300 font-mono tracking-wider">Syncing Starfield...</span>
-                    </div>
+                    <div className="absolute inset-0 map-loading-shimmer pointer-events-none z-20" />
                   )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart
                       margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.03)" />
+                      {/* Hide axes, rulers, and grid lines entirely to render clean custom stellar field overlay (Feature 1) */}
                       <XAxis 
+                        hide={true}
                         type="number" 
                         dataKey="ra" 
-                        name="RA" 
-                        unit="°" 
                         domain={raDomain}
                         allowDataOverflow={true}
-                        stroke="rgba(148, 163, 184, 0.4)"
-                        fontSize={11}
-                        label={{ 
-                          value: 'Right Ascension (RA) deg', 
-                          position: 'insideBottom', 
-                          offset: -10, 
-                          fill: 'rgba(148, 163, 184, 0.6)',
-                          fontSize: 12
-                        }}
                       />
                       <YAxis 
+                        hide={true}
                         type="number" 
                         dataKey="dec" 
-                        name="Dec" 
-                        unit="°" 
                         domain={decDomain}
                         allowDataOverflow={true}
-                        stroke="rgba(148, 163, 184, 0.4)"
-                        fontSize={11}
-                        label={{ 
-                          value: 'Declination (Dec) deg', 
-                          angle: -90, 
-                          position: 'insideLeft', 
-                          offset: -5, 
-                          fill: 'rgba(148, 163, 184, 0.6)',
-                          fontSize: 12
-                        }}
                       />
-                      <Tooltip cursor={{ strokeDasharray: '3 3', stroke: 'rgba(99, 102, 241, 0.2)' }} content={() => null} />
                       <Scatter 
                         name="Stellar Coordinates" 
                         data={stars} 
