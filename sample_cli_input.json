@@ -1,0 +1,26 @@
+{
+  "records": [
+    {
+      "star_data": {
+        "tic_id": "TIC123",
+        "Tmag": 10.5,
+        "Teff": 5800,
+        "logg": 4.44,
+        "rad": 1.0,
+        "mass": 1.0,
+        "rho": 1.4,
+        "contratio": 0.01,
+        "ebv": 0.02,
+        "d": 100.0
+      },
+      "transit_data": {
+        "depth": 0.01,
+        "duration": 0.2,
+        "period": 3.0,
+        "SNR": 20.0
+      },
+      "light_curve": [1.0, 1.0, 1.0, 1.0, 1.0, 0.98, 1.0, 1.0, 1.0, 1.0],
+      "t0": 0.0
+    }
+  ]
+}
