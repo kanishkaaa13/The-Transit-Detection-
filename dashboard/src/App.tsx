@@ -5,11 +5,8 @@ import {
   Database, 
   Zap, 
   Cpu, 
-  Activity, 
-  HelpCircle,
   FileText
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 
 function App() {
   const [starCount, setStarCount] = useState<number>(0);

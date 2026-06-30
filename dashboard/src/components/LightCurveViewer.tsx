@@ -14,7 +14,6 @@ import {
   Info, 
   CheckCircle2, 
   AlertTriangle, 
-  HelpCircle, 
   Activity, 
   RefreshCw, 
   BarChart2, 
@@ -269,7 +268,7 @@ export function LightCurveViewer() {
                   placeholder="Enter TIC ID (e.g. 451598465)"
                   className="pl-10 bg-[#020617]/60 border-slate-700 text-indigo-100 placeholder-indigo-300/40 focus-visible:ring-indigo-500 focus-visible:ring-offset-0 focus-visible:border-indigo-500"
                   value={ticId}
-                  onChange={(e) => setTicId(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTicId(e.target.value.replace(/\D/g, ''))}
                 />
               </div>
 
@@ -278,7 +277,7 @@ export function LightCurveViewer() {
                   <select
                     className="w-full h-10 px-3 rounded-md bg-[#020617]/60 border border-slate-700 text-indigo-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                     value={ticId}
-                    onChange={(e) => {
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                       setTicId(e.target.value);
                       loadLightCurve(e.target.value);
                     }}
@@ -460,21 +459,7 @@ export function LightCurveViewer() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
-                {!detectionResult && !detecting ? (
-                  // Initial Action State
-                  <div className="text-center py-6">
-                    <Orbit className="h-16 w-16 text-indigo-500/20 mx-auto mb-4 pulsar" />
-                    <p className="text-sm text-slate-400 mb-4 px-2">
-                      Analyze the detrended light curve using our 1D CNN model and BLS periodogram solver.
-                    </p>
-                    <Button 
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-500/10 active:scale-95 transition-all"
-                      onClick={handleDetectSignal}
-                    >
-                      Detect Signal
-                    </Button>
-                  </div>
-                ) : detecting ? (
+                {detecting ? (
                   // ML Processing State
                   <div className="text-center py-8 space-y-4">
                     <RefreshCw className="h-10 w-10 text-cyan-400 animate-spin mx-auto" />
@@ -483,7 +468,7 @@ export function LightCurveViewer() {
                       <p className="text-xs text-slate-400 animate-pulse">Running BLS Periodogram search...</p>
                     </div>
                   </div>
-                ) : (
+                ) : detectionResult ? (
                   // Completed Classification Result Panel
                   <div className="space-y-6 animate-in fade-in duration-300">
                     <div className="space-y-4">
@@ -576,6 +561,20 @@ export function LightCurveViewer() {
                     >
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
                       Re-run Classifier
+                    </Button>
+                  </div>
+                ) : (
+                  // Initial Action State
+                  <div className="text-center py-6">
+                    <Orbit className="h-16 w-16 text-indigo-500/20 mx-auto mb-4 pulsar" />
+                    <p className="text-sm text-slate-400 mb-4 px-2">
+                      Analyze the detrended light curve using our 1D CNN model and BLS periodogram solver.
+                    </p>
+                    <Button 
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-500/10 active:scale-95 transition-all"
+                      onClick={handleDetectSignal}
+                    >
+                      Detect Signal
                     </Button>
                   </div>
                 )}
