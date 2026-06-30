@@ -642,7 +642,6 @@ export function LightCurveViewer({
   const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'assistant', text: string, isError?: boolean, retryPayload?: string }[]>([]);
   const [chatInput, setChatInput] = useState<string>('');
   const [aiLoading, setAiLoading] = useState<boolean>(false);
-  const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // AI Reasoning States
@@ -787,7 +786,6 @@ export function LightCurveViewer({
       setChatMessages(prev => [...prev, { sender: 'user', text: userQ }]);
       setChatInput('');
     }
-    setLastUserMessage(userQ);
     setAiLoading(true);
 
     // 15-second safety timeout — prevents a stuck loading spinner
