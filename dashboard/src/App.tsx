@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, createContext, useContext, use
 import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
 import { PriorityQueue } from './components/PriorityQueue';
+import { ChatbotWidget } from './components/ChatbotWidget';
 import { 
   Orbit, 
   Database, 
@@ -524,7 +525,7 @@ function App() {
       {/* =================================================================
           FEATURE 5 COMPONENT: Keyboard shortcuts overlay & floating trigger button
           ================================================================= */}
-      <div className="fixed bottom-6 right-6 flex items-center gap-2 z-50">
+      <div className="fixed bottom-6 right-20 flex items-center gap-2 z-50">
         <button 
           onClick={() => setShowShortcutsHelp(prev => !prev)}
           title="Keyboard Shortcuts Guide"
@@ -533,6 +534,17 @@ function App() {
           <Keyboard className="h-4.5 w-4.5" />
         </button>
       </div>
+
+      <ChatbotWidget 
+        setActiveTab={(tab) => setActiveTab(tab as any)}
+        onSelectStar={handleSelectStar}
+        stats={{
+          targetsMapped: starCount,
+          candidatesFound: starsData.filter(s => s.classification === 'Exoplanet').length,
+          avgConfidence: animatedConfidence,
+          lastPipelineRun: 'June 30, 2026'
+        }}
+      />
 
       {showShortcutsHelp && (
         <div className="fixed inset-0 bg-[#020617]/75 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
