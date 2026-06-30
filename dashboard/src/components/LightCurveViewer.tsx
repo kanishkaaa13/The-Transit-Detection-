@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiPath } from '../config';
 import { 
   ResponsiveContainer, 
@@ -7,7 +7,11 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  CartesianGrid 
+  CartesianGrid,
+  ScatterChart,
+  Scatter,
+  ReferenceArea,
+  ReferenceLine
 } from 'recharts';
 import { 
   Search, 
@@ -1006,6 +1010,62 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
   const fluxMin = stats ? stats.minFlux - stats.rangeFlux * 0.05 : 0.95;
   const fluxMax = stats ? stats.maxFlux + stats.rangeFlux * 0.05 : 1.05;
 
+  // -------------------------------------------------------------------
+  // Phase-folded data: Option B — anchor t0 at flux minimum so the
+  // transit dip is always centered near phase 0.5
+  // -------------------------------------------------------------------
+  const phaseFoldedData = useMemo(() => {
+    if (!detectionResult || data.length === 0) return [];
+    const P = detectionResult.period;
+    if (!P || P <= 0) return [];
+
+    // Find t0 as the time of minimum flux (deepest transit point)
+    let minFluxVal = Infinity;
+    let t0 = data[0].time;
+    for (const pt of data) {
+      if (pt.flux < minFluxVal) {
+        minFluxVal = pt.flux;
+        t0 = pt.time;
+      }
+    }
+
+    // Shift so transit lands at phase 0.5
+    // phase_raw = ((t - t0) % P) / P  →  in [0,1) with transit at 0
+    // phase = (phase_raw + 0.5) % 1   →  transit shifted to 0.5
+    const folded = data.map(pt => {
+      let phaseRaw = ((pt.time - t0) % P) / P;
+      if (phaseRaw < 0) phaseRaw += 1;
+      const phase = (phaseRaw + 0.5) % 1;
+      return { phase, flux: pt.flux };
+    });
+
+    // Sort by phase for cleaner tooltip experience
+    folded.sort((a, b) => a.phase - b.phase);
+
+    // Cap at 6000 points so the scatter chart stays fast
+    if (folded.length > 6000) {
+      const step = Math.ceil(folded.length / 6000);
+      return folded.filter((_, i) => i % step === 0);
+    }
+    return folded;
+  }, [data, detectionResult]);
+
+  // Phase plot Y-axis domain — tighter than raw chart to emphasise the dip
+  const phaseFluxMin = phaseFoldedData.length > 0
+    ? Math.min(...phaseFoldedData.map(p => p.flux)) - (fluxMax - fluxMin) * 0.05
+    : fluxMin;
+  const phaseFluxMax = phaseFoldedData.length > 0
+    ? Math.max(...phaseFoldedData.map(p => p.flux)) + (fluxMax - fluxMin) * 0.05
+    : fluxMax;
+
+  // Transit duration in phase units (how wide the band should be)
+  const transitPhaseFraction = detectionResult
+    ? Math.min(0.08, (detectionResult.duration / 24) / (detectionResult.period || 1))
+    : 0.05;
+  const bandHalf = Math.max(0.03, transitPhaseFraction / 2);
+  const bandLo = +(0.5 - bandHalf).toFixed(3);
+  const bandHi = +(0.5 + bandHalf).toFixed(3);
+
   const reasoning = detectionResult ? getClassReasoning(detectionResult) : null;
   const assessment = detectionResult ? getHabitabilityAssessment(detectionResult) : null;
 
@@ -1233,6 +1293,158 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
               )}
             </CardContent>
           </Card>
+
+          {/* ---------------------------------------------------------
+              Phase-Folded Light Curve Panel
+              Shown only after Detect Signal returns a period.
+              --------------------------------------------------------- */}
+          {detectionResult && phaseFoldedData.length > 0 && (
+            <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <CardHeader className="pb-3 border-b border-slate-800/60">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-md font-semibold text-slate-100 flex items-center gap-2">
+                      <Orbit className="h-4.5 w-4.5 text-violet-400" />
+                      Phase-Folded Light Curve
+                      <span className="text-violet-300 font-mono text-sm font-normal">
+                        P&nbsp;=&nbsp;{detectionResult.period.toFixed(4)}&nbsp;days
+                      </span>
+                    </CardTitle>
+                    <CardDescription className="text-slate-400 text-[11px] mt-0.5">
+                      All {Math.round((timeMax - timeMin) / detectionResult.period)} transits phase-folded and stacked. Transit dip centered at phase 0.50.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        detectionResult.classification === 'Exoplanet'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 glow-cyan text-[10px] font-semibold'
+                          : detectionResult.classification === 'Binary Star'
+                          ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 text-[10px] font-semibold'
+                          : 'bg-slate-500/10 text-slate-400 border-slate-500/20 text-[10px] font-semibold'
+                      }
+                    >
+                      {detectionResult.classification}
+                    </Badge>
+                    <Badge variant="outline" className="bg-violet-500/10 text-violet-400 border-violet-500/20 text-[10px] font-semibold">
+                      {(detectionResult.confidence * 100).toFixed(1)}% confidence
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="h-[340px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 10, right: 20, bottom: 28, left: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.05)" />
+
+                      {/* Transit window shading */}
+                      <ReferenceArea
+                        x1={bandLo}
+                        x2={bandHi}
+                        fill="rgba(139,92,246,0.10)"
+                        stroke="rgba(139,92,246,0.30)"
+                        strokeWidth={1}
+                        strokeDasharray="4 3"
+                        label={{
+                          value: 'Transit Window',
+                          position: 'insideTop',
+                          fill: 'rgba(167,139,250,0.6)',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          letterSpacing: '0.05em'
+                        }}
+                      />
+
+                      {/* Centre-of-transit marker */}
+                      <ReferenceLine
+                        x={0.5}
+                        stroke="rgba(139,92,246,0.5)"
+                        strokeWidth={1.5}
+                        strokeDasharray="6 3"
+                      />
+
+                      <XAxis
+                        type="number"
+                        dataKey="phase"
+                        domain={[0, 1]}
+                        ticks={[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}
+                        tickFormatter={(v) => v.toFixed(1)}
+                        stroke="rgba(148,163,184,0.4)"
+                        fontSize={10}
+                        label={{
+                          value: 'Orbital Phase',
+                          position: 'insideBottom',
+                          offset: -12,
+                          fill: 'rgba(148,163,184,0.6)',
+                          fontSize: 12
+                        }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="flux"
+                        domain={[phaseFluxMin, phaseFluxMax]}
+                        tickFormatter={(v) => v.toFixed(4)}
+                        stroke="rgba(148,163,184,0.4)"
+                        fontSize={10}
+                        width={62}
+                        label={{
+                          value: 'Relative Flux',
+                          angle: -90,
+                          position: 'insideLeft',
+                          offset: 8,
+                          fill: 'rgba(148,163,184,0.6)',
+                          fontSize: 12
+                        }}
+                      />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3', stroke: 'rgba(139,92,246,0.4)' }}
+                        contentStyle={{
+                          backgroundColor: '#020617',
+                          borderColor: '#4c1d95',
+                          color: '#f8fafc',
+                          borderRadius: '6px',
+                          fontSize: '11px'
+                        }}
+                        formatter={(val: any) => [val.toFixed(6), 'Relative Flux']}
+                        labelFormatter={(label) => `Phase: ${Number(label).toFixed(4)}`}
+                      />
+                      <Scatter
+                        name="Phase-folded flux"
+                        data={phaseFoldedData}
+                        fill="#a78bfa"
+                        opacity={0.45}
+                        r={1.4}
+                      />
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Metrics strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-800/60 text-xs">
+                  <div className="p-3 bg-[#020617]/40 rounded-md border border-slate-900/60">
+                    <span className="text-slate-400 block mb-1">Orbital Period</span>
+                    <strong className="text-sm text-violet-300 font-mono">{detectionResult.period.toFixed(4)} d</strong>
+                  </div>
+                  <div className="p-3 bg-[#020617]/40 rounded-md border border-slate-900/60">
+                    <span className="text-slate-400 block mb-1">Transit Depth</span>
+                    <strong className="text-sm text-slate-100 font-mono">{(detectionResult.depth * 1e6).toFixed(0)} ppm</strong>
+                  </div>
+                  <div className="p-3 bg-[#020617]/40 rounded-md border border-slate-900/60">
+                    <span className="text-slate-400 block mb-1">Transit Duration</span>
+                    <strong className="text-sm text-slate-100 font-mono">{detectionResult.duration.toFixed(2)} hr</strong>
+                  </div>
+                  <div className="p-3 bg-[#020617]/40 rounded-md border border-slate-900/60">
+                    <span className="text-slate-400 block mb-1">Transits Stacked</span>
+                    <strong className="text-sm text-slate-100 font-mono">
+                      ~{Math.max(1, Math.round((timeMax - timeMin) / detectionResult.period))}
+                    </strong>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
             {/* Below Light Curve space: Habitability, Sky Snapshot, Summary Report */}
             {detectionResult && (
