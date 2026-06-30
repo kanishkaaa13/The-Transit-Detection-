@@ -127,6 +127,7 @@ function App() {
   const [starsData, setStarsData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'viewer' | 'skymap' | 'queue'>('viewer');
   const [selectedStarId, setSelectedStarId] = useState<string>('451598465');
+  const [activeDetectionResult, setActiveDetectionResult] = useState<any | null>(null);
 
   // =================================================================
   // FEATURE 1 STATE: Live Stats Bar
@@ -444,6 +445,8 @@ function App() {
                 <LightCurveViewer 
                   selectedStarId={selectedStarId} 
                   onSelectStar={setSelectedStarId} 
+                  detectionResult={activeDetectionResult}
+                  setDetectionResult={setActiveDetectionResult}
                 />
               ) : activeTab === 'skymap' ? (
                 <SkyMap onSelectStar={handleSelectStar} />
@@ -538,6 +541,8 @@ function App() {
       <ChatbotWidget 
         setActiveTab={(tab) => setActiveTab(tab as any)}
         onSelectStar={handleSelectStar}
+        activeStarId={selectedStarId}
+        activeDetectionResult={activeDetectionResult}
         stats={{
           targetsMapped: starCount,
           candidatesFound: starsData.filter(s => s.classification === 'Exoplanet').length,

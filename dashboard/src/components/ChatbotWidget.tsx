@@ -7,9 +7,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { 
+  getClassReasoning, 
+  getHabitabilityAssessment, 
+  generateSummary
+} from './LightCurveViewer';
+
 interface ChatbotWidgetProps {
   setActiveTab?: (tab: string) => void;
   onSelectStar?: (id: string) => void;
+  activeStarId?: string;
+  activeDetectionResult?: any | null;
   stats?: {
     targetsMapped: number;
     candidatesFound: number;
@@ -28,7 +36,13 @@ interface Message {
   }>;
 }
 
-export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidgetProps) {
+export function ChatbotWidget({ 
+  setActiveTab, 
+  onSelectStar, 
+  activeStarId, 
+  activeDetectionResult, 
+  stats 
+}: ChatbotWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -48,17 +62,104 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
     }
   }, [messages, isThinking]);
 
-  // Default canned suggestions
-  const quickReplies = [
-    "How do I search a TIC ID?",
-    "What is BLS?",
-    "What does AI confidence mean?",
-    "How do I read the light curve?"
-  ];
+  // Default suggestions based on active target state
+  const quickReplies = activeDetectionResult 
+    ? [
+        `Why was TIC ${activeStarId} classified?`,
+        `Is TIC ${activeStarId} habitable?`,
+        `Show parameters for TIC ${activeStarId}`,
+        "Generate summary report"
+      ]
+    : [
+        "How do I search a TIC ID?",
+        "What is BLS?",
+        "What does AI confidence mean?",
+        "How do I read the light curve?"
+      ];
 
   // Helper response parser
   const getBotResponse = (userMessage: string): { text: string; actions?: Array<{ label: string; onClick: () => void }> } => {
     const msg = userMessage.toLowerCase().trim();
+
+    // ==========================================
+    // Target-Specific Vetting & Telemetry (Lifting Copilot Features)
+    // ==========================================
+    const hasTargetResult = !!activeDetectionResult;
+
+    // 1. Vetting & Classification Reasoning
+    if (msg.includes('why') || msg.includes('reason') || msg.includes('vetting') || msg.includes('checks')) {
+      if (!hasTargetResult) {
+        return {
+          text: `Astra Alert: No active telemetry loaded for TIC ${activeStarId || 'N/A'}. Please transition to the Light Curve Viewer and select "Detect Signal" to boot up our vetting classification pipeline.`,
+          actions: setActiveTab ? [{
+            label: "Go to Light Curve Viewer",
+            onClick: () => setActiveTab('viewer')
+          }] : []
+        };
+      }
+      const reasoning = getClassReasoning(activeDetectionResult);
+      const testsText = reasoning.rankedFeatures
+        .map((f, i) => `• **#${i+1} ${f.name}**: ${f.passed ? '✓ Passed' : '✗ Failed'} — ${f.explanation}`)
+        .join('\n');
+      
+      return {
+        text: `Vetting Vitals for Target TIC ${activeStarId}:\n\n**Vetting Checks Status:**\n${testsText}\n\n**Astra Vetting Analysis:**\n${reasoning.summary}`
+      };
+    }
+
+    // 2. Habitability Assessment Details
+    if (msg.includes('habitable') || msg.includes('habitability') || msg.includes('hz') || msg.includes('life') || msg.includes('temperature') || msg.includes('teq') || msg.includes('insolation')) {
+      if (!hasTargetResult) {
+        return {
+          text: `Astra Alert: Habitability indexes are uncomputed for TIC ${activeStarId || 'N/A'}. Execute "Detect Signal" to calculate equilibrium temperature bounds.`,
+          actions: setActiveTab ? [{
+            label: "Go to Light Curve Viewer",
+            onClick: () => setActiveTab('viewer')
+          }] : []
+        };
+      }
+      const hab = getHabitabilityAssessment(activeDetectionResult);
+      const hzStatus = activeDetectionResult.inHabitableZone 
+        ? `**YES**, the candidate orbits inside the Habitable Zone.` 
+        : `**NO**, the candidate orbits outside the habitable boundaries.`;
+
+      return {
+        text: `Stellar Habitability Profile [TIC ${activeStarId}]:\n• **Habitable Zone (HZ):** ${hzStatus}\n• **Estimated Planet Type:** ${activeDetectionResult.planetType}\n• **Equilibrium Temperature:** ${hab.equilibriumTemp} K\n• **Insolation Flux:** ${hab.insolationFlux.toFixed(2)} S⊕\n• **Orbital Distance (a):** ${hab.orbitalDistance.toFixed(3)} AU\n• **Stellar Teff:** ${hab.stellarTeff} K\n• **Stellar Luminosity:** ${hab.stellarLuminosity.toFixed(2)} L⊙`
+      };
+    }
+
+    // 3. Transit Parameters Log
+    if (msg.includes('period') || msg.includes('orbit') || msg.includes('depth') || msg.includes('duration') || msg.includes('snr') || msg.includes('size') || msg.includes('radius') || msg.includes('parameters') || msg.includes('metrics')) {
+      if (!hasTargetResult) {
+        return {
+          text: `Astra Alert: Transit parameters are empty for TIC ${activeStarId || 'N/A'}. Please run the periodogram solver pipeline first.`,
+          actions: setActiveTab ? [{
+            label: "Go to Light Curve Viewer",
+            onClick: () => setActiveTab('viewer')
+          }] : []
+        };
+      }
+      return {
+        text: `Stellar Transit Parameters [TIC ${activeStarId}]:\n• **Orbital Period:** ${activeDetectionResult.period.toFixed(4)} days (${(activeDetectionResult.period * 24).toFixed(1)} hours)\n• **Transit Depth:** ${(activeDetectionResult.depth * 100).toFixed(4)}% (${(activeDetectionResult.depth * 1e6).toFixed(0)} ppm)\n• **Transit Duration:** ${activeDetectionResult.duration.toFixed(2)} hours\n• **Planet Radius:** ${activeDetectionResult.classification === 'Exoplanet' ? `${activeDetectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}\n• **Signal-to-Noise Ratio (SNR):** ${activeDetectionResult.snr.toFixed(1)}`
+      };
+    }
+
+    // 4. Mission Summary Report Generation
+    if (msg.includes('report') || msg.includes('summary') || msg.includes('generate')) {
+      if (!hasTargetResult) {
+        return {
+          text: `Astra Alert: Vetting report is unavailable for TIC ${activeStarId || 'N/A'}. Run detection pipeline to generate.`,
+          actions: setActiveTab ? [{
+            label: "Go to Light Curve Viewer",
+            onClick: () => setActiveTab('viewer')
+          }] : []
+        };
+      }
+      const summary = generateSummary(activeDetectionResult, activeStarId || '');
+      return {
+        text: `Copy that — generating stellar summary report for TIC ${activeStarId}:\n\n${summary}`
+      };
+    }
     
     // 1. Step-by-Step Vetting Instructions
     const ticMatch = msg.match(/tic\s*(\d+)/i) || msg.match(/find\s*planet\s*candidates?\s*for\s*(?:tic\s*)?(\d+)/i);
@@ -191,12 +292,12 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 p-1.5 rounded-full bg-[#0a0e1a] hover:bg-slate-900 text-white shadow-2xl z-40 transition-all active:scale-95 flex items-center gap-2 group border border-indigo-500/40 glow-accent-purple overflow-hidden"
+          className="fixed bottom-6 right-6 p-1 rounded-full bg-[#0a0e1a]/95 hover:bg-slate-900 text-white shadow-2xl z-40 transition-all active:scale-95 flex items-center gap-3 group border border-indigo-550/40 glow-accent-purple overflow-hidden"
         >
-          <div className="h-10 w-10 rounded-full overflow-hidden border border-indigo-500/30 bg-[#070b19] relative shrink-0">
+          <div className="h-16 w-16 rounded-full overflow-hidden border border-indigo-500/30 bg-[#070b19] relative shrink-0">
             <img src="/astra-avatar.jpg" alt="Astra Bot" className="w-full h-full object-cover" />
           </div>
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:pr-3 transition-all duration-300 ease-out text-xs font-semibold uppercase tracking-wider whitespace-nowrap text-indigo-350">
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:pr-4 transition-all duration-300 ease-out text-sm font-semibold uppercase tracking-wider whitespace-nowrap text-indigo-300">
             Astra Assistant
           </span>
         </button>
@@ -204,12 +305,12 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-0 sm:bottom-20 right-0 sm:right-6 w-full sm:w-[360px] h-full sm:h-[480px] bg-[#0a0e1a]/95 border-t sm:border border-slate-800/80 sm:rounded-xl shadow-2xl z-50 flex flex-col backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-5 duration-300 max-sm:top-0">
+        <div className="fixed bottom-0 sm:bottom-20 right-0 sm:right-6 w-full sm:w-[410px] h-full sm:h-[560px] bg-[#0a0e1a]/95 border-t sm:border border-slate-800/80 sm:rounded-xl shadow-2xl z-50 flex flex-col backdrop-blur-md overflow-hidden animate-in slide-in-from-bottom-5 duration-300 max-sm:top-0">
           
           {/* Header */}
           <div className="p-3.5 bg-gradient-to-r from-indigo-950/40 via-indigo-900/20 to-transparent border-b border-slate-800/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full border border-indigo-500/30 overflow-hidden flex items-center justify-center bg-[#070b19]">
+              <div className="h-10 w-10 rounded-full border border-indigo-500/30 overflow-hidden flex items-center justify-center bg-[#070b19] shrink-0">
                 <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
               </div>
               <div>
@@ -235,7 +336,7 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
                   }`}
                 >
                   {msg.sender === 'assistant' && (
-                    <div className="h-6 w-6 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                    <div className="h-8 w-8 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5 shadow-[0_0_10px_rgba(99,102,241,0.1)]">
                       <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
                     </div>
                   )}
@@ -289,7 +390,7 @@ export function ChatbotWidget({ setActiveTab, onSelectStar, stats }: ChatbotWidg
             {/* Typing indicator */}
             {isThinking && (
               <div className="flex gap-2 max-w-[85%] mr-auto items-start animate-pulse">
-                <div className="h-6 w-6 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5">
+                <div className="h-8 w-8 rounded-full border border-indigo-500/30 overflow-hidden shrink-0 bg-[#070b19] mt-0.5">
                   <img src="/astra-avatar.jpg" alt="Astra Avatar" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col">

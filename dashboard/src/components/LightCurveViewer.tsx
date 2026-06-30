@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ResponsiveContainer, 
   LineChart, 
@@ -20,9 +20,7 @@ import {
   Globe,
   Sun,
   FileText,
-  MessageSquare,
   X,
-  Send,
   Sparkles,
   CheckCircle2,
   XCircle,
@@ -604,9 +602,16 @@ export function detectSignal(ticId: string): Promise<DetectionResult> {
 interface LightCurveViewerProps {
   selectedStarId?: string;
   onSelectStar?: (id: string) => void;
+  detectionResult: DetectionResult | null;
+  setDetectionResult: (res: DetectionResult | null) => void;
 }
 
-export function LightCurveViewer({ selectedStarId, onSelectStar }: LightCurveViewerProps) {
+export function LightCurveViewer({ 
+  selectedStarId, 
+  onSelectStar,
+  detectionResult,
+  setDetectionResult
+}: LightCurveViewerProps) {
   const { addToast } = useToast();
   // Selection and searching
   const [ticId, setTicId] = useState<string>('451598465');
@@ -631,20 +636,12 @@ export function LightCurveViewer({ selectedStarId, onSelectStar }: LightCurveVie
 
   // Detection states
   const [detecting, setDetecting] = useState<boolean>(false);
-  const [detectionResult, setDetectionResult] = useState<DetectionResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
 
   // Report states
   const [reportText, setReportText] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<boolean>(false);
-
-  // AI Chat Panel States
-  const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
-  const [chatMessages, setChatMessages] = useState<{ sender: 'user' | 'assistant', text: string, isError?: boolean, retryPayload?: string }[]>([]);
-  const [chatInput, setChatInput] = useState<string>('');
-  const [aiLoading, setAiLoading] = useState<boolean>(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // AI Reasoning States
   const [isWhyOpen, setIsWhyOpen] = useState<boolean>(false);
@@ -779,72 +776,7 @@ export function LightCurveViewer({ selectedStarId, onSelectStar }: LightCurveVie
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent, retryText?: string) => {
-    e.preventDefault();
-    const userQ = retryText ?? chatInput.trim();
-    if (!userQ || aiLoading) return;
 
-    if (!retryText) {
-      setChatMessages(prev => [...prev, { sender: 'user', text: userQ }]);
-      setChatInput('');
-    }
-    setAiLoading(true);
-
-    // 15-second safety timeout — prevents a stuck loading spinner
-    const safetyTimer = setTimeout(() => {
-      setAiLoading(false);
-      setChatMessages(prev => [
-        ...prev,
-        { sender: 'assistant', text: "⚠ Response timed out — the copilot took too long to reply.", isError: true, retryPayload: userQ }
-      ]);
-    }, 15000);
-
-    try {
-      const enrichedContext: EnrichedDetectionResult | null = detectionResult ? {
-        ...detectionResult,
-        reasoning: getClassReasoning(detectionResult),
-        habitability: getHabitabilityAssessment(detectionResult)
-      } : null;
-      const response = await askAboutStar(enrichedContext, userQ, activeTicId);
-      clearTimeout(safetyTimer);
-      if (!response || response.trim() === '') {
-        setChatMessages(prev => [
-          ...prev,
-          { sender: 'assistant', text: "⚠ Couldn't get a response — please try again.", isError: true, retryPayload: userQ }
-        ]);
-      } else {
-        setChatMessages(prev => [...prev, { sender: 'assistant', text: response }]);
-      }
-    } catch (err) {
-      clearTimeout(safetyTimer);
-      console.error('AI chat failed:', err);
-      setChatMessages(prev => [
-        ...prev,
-        { sender: 'assistant', text: "⚠ Couldn't get a response — please try again.", isError: true, retryPayload: userQ }
-      ]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // Reset chat messages when star target changes
-  useEffect(() => {
-    setChatMessages([
-      { 
-        sender: 'assistant', 
-        text: `Hello! I am your TESS Copilot. I have loaded the telemetry for **TIC ${activeTicId || 'N/A'}**. 
-
-You can ask me questions about its **habitability**, **orbital period**, **estimated planet size**, or **stellar host age**.` 
-      }
-    ]);
-  }, [activeTicId]);
-
-  // Scroll to bottom of chat
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [chatMessages, aiLoading]);
 
   const handleGenerateReport = () => {
     if (!detectionResult) return;
@@ -1905,117 +1837,6 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
           </CardContent>
         </Card>
       )}
-
-
-      {/* Floating AI Chat Trigger Button */}
-      <button 
-        onClick={() => setIsAiPanelOpen(true)}
-        className="fixed bottom-6 right-6 p-4 rounded-full bg-indigo-650 hover:bg-indigo-500 text-white shadow-xl shadow-indigo-500/25 z-40 transition-all active:scale-95 flex items-center gap-2 group border border-indigo-400/20"
-      >
-        <MessageSquare className="h-5 w-5 text-white" />
-        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-out text-xs font-semibold uppercase tracking-wider whitespace-nowrap">
-          Ask Copilot
-        </span>
-      </button>
-
-      {/* Collapsible Slide-in AI Sidebar */}
-      <div className={`fixed inset-y-0 right-0 w-80 sm:w-96 bg-[#090d1a] border-l border-slate-800/80 shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out transform ${
-        isAiPanelOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-slate-850 bg-[#070a14] flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-indigo-500/10 rounded-md border border-indigo-500/20">
-              <Sparkles className="h-4 w-4 text-indigo-400" />
-            </div>
-            <div>
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">AI Signal Copilot</h3>
-              <p className="text-[9px] text-slate-500 font-mono">Target: TIC {activeTicId}</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setIsAiPanelOpen(false)}
-            className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <X className="h-4.5 w-4.5" />
-          </button>
-        </div>
-
-        {/* Sidebar Messages Area */}
-        <div className="flex-grow p-4 overflow-y-auto space-y-4 scrollbar">
-          {chatMessages.map((msg, idx) => (
-            <div 
-              key={idx} 
-              className={`flex flex-col max-w-[85%] ${
-                msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'
-              }`}
-            >
-              <div 
-                className={`p-3 rounded-xl text-xs leading-relaxed ${
-                  msg.sender === 'user' 
-                    ? 'bg-indigo-600 text-white rounded-tr-none' 
-                    : msg.isError
-                    ? 'bg-rose-950/40 border border-rose-500/25 text-rose-300 rounded-tl-none'
-                    : 'bg-[#0f172a] border border-slate-850 text-slate-300 rounded-tl-none'
-                }`}
-              >
-                {msg.sender === 'user' ? msg.text : renderMessageContent(msg.text)}
-                {msg.isError && msg.retryPayload && (
-                  <button
-                    onClick={(e) => handleSendMessage(e as any, msg.retryPayload)}
-                    disabled={aiLoading}
-                    className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-rose-300 hover:text-white border border-rose-500/30 hover:border-indigo-400/40 hover:bg-indigo-500/10 px-2 py-1 rounded-md transition-all cursor-pointer disabled:opacity-40"
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    Try again
-                  </button>
-                )}
-              </div>
-              <span className="text-[9px] text-slate-600 mt-1 uppercase tracking-wider font-semibold font-mono">
-                {msg.sender === 'user' ? 'Scientist' : 'Copilot'}
-              </span>
-            </div>
-          ))}
-
-          {/* AI Typings loader */}
-          {aiLoading && (
-            <div className="flex flex-col max-w-[85%] mr-auto items-start">
-              <div className="p-3 bg-[#0f172a] border border-slate-850 rounded-xl rounded-tl-none flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce" />
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-100" />
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce delay-200" />
-              </div>
-              <span className="text-[9px] text-slate-600 mt-1 uppercase tracking-wider font-semibold font-mono">Copilot</span>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Sidebar Input Form */}
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-850 bg-[#070a14] space-y-2">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder={detectionResult ? "Ask about period, size, HZ status..." : "Run detection first..."}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              disabled={aiLoading}
-              className="bg-[#020617] border-slate-700 text-xs h-9 focus:ring-indigo-500"
-            />
-            <Button 
-              type="submit" 
-              disabled={aiLoading || !chatInput.trim()}
-              className="h-9 px-3 bg-indigo-600 hover:bg-indigo-500 text-white shrink-0"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-          <p className="text-[9px] text-slate-600 text-center font-mono">
-            Analyzes active target photometry and parameters.
-          </p>
-        </form>
-      </div>
     </div>
   );
 }
