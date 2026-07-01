@@ -108,11 +108,11 @@ export function ModelPerformancePanel() {
       {isOpen && (
         <div className="fixed inset-0 bg-[#020617]/80 backdrop-blur-sm z-[998] flex items-center justify-center p-4">
           <div
-            className="bg-[#0b0f1e] border border-slate-800 max-w-2xl w-full rounded-2xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200"
+            className="bg-[#0b0f1e] border border-slate-800 max-w-2xl w-full max-h-[90vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-gradient-to-r from-[#0b0f1e] via-[#111827] to-[#0b0f1e]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-gradient-to-r from-[#0b0f1e] via-[#111827] to-[#0b0f1e] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                   <Shield className="h-5 w-5 text-emerald-400" />
@@ -135,7 +135,7 @@ export function ModelPerformancePanel() {
             </div>
 
             {/* Body */}
-            <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto scrollbar-accent">
+            <div className="px-6 py-5 space-y-5 flex-1 overflow-y-auto scrollbar-accent">
               {loading && (
                 <div className="text-center py-10">
                   <div className="animate-spin h-8 w-8 border-2 border-emerald-400 border-t-transparent rounded-full mx-auto mb-3" />
@@ -188,7 +188,7 @@ export function ModelPerformancePanel() {
                       </span>
                     </div>
                     <div className="h-52">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={barData} barCategoryGap="20%">
                           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                           <XAxis

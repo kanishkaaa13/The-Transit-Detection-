@@ -17,7 +17,6 @@ import {
   Palette,
   Keyboard,
   HelpCircle,
-  Clock,
   TrendingUp,
   X,
   CheckCircle2,
@@ -137,7 +136,6 @@ function App() {
   const [animatedTargets, setAnimatedTargets] = useState(0);
   const [animatedExoplanets, setAnimatedExoplanets] = useState(0);
   const [animatedConfidence, setAnimatedConfidence] = useState(0);
-  const lastDectectRun = '17:05:19';
 
   // =================================================================
   // FEATURE 2 STATE: Collapsible Sidebar Feed
@@ -318,11 +316,6 @@ function App() {
 
             {/* Model Performance Metrics trigger */}
             <ModelPerformancePanel />
-
-            <div className="flex items-center gap-1.5 px-3.5 py-1 bg-emerald-500/5 rounded-full border border-emerald-500/20 text-xs">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-              <span className="text-emerald-400 font-semibold tracking-wider">PIPELINE READY</span>
-            </div>
           </div>
         </div>
       </header>
@@ -332,7 +325,7 @@ function App() {
           Placed below the header with animated number count-ups on load
           ================================================================= */}
       <section className="bg-[#0b0f1e]/40 border-b border-slate-800/60 py-3.5 px-6 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 items-center text-center md:text-left">
+        <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4 md:gap-8 items-center text-center md:text-left">
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <Database className="h-4.5 w-4.5 text-accent animate-pulse" />
             <div>
@@ -357,15 +350,6 @@ function App() {
               <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Avg AI Confidence</span>
               <strong className="text-md md:text-lg text-slate-100 font-bold font-mono">
                 {animatedConfidence}%
-              </strong>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 justify-center md:justify-start">
-            <Clock className="h-4.5 w-4.5 text-indigo-400" />
-            <div>
-              <span className="text-[10px] text-slate-500 block uppercase font-mono tracking-wider">Last Pipeline Run</span>
-              <strong className="text-xs md:text-sm text-indigo-300 font-bold font-mono">
-                {lastDectectRun}
               </strong>
             </div>
           </div>

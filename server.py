@@ -162,14 +162,91 @@ def get_model_performance():
 
 @app.route('/api/sky-chart')
 def get_sky_chart():
-    """Proxy endpoint for AstronomyAPI (if you want to add this later)"""
-    return jsonify({'error': 'not_implemented'}), 501
+    """Proxy endpoint for AstronomyAPI - Mock implementation for prototype."""
+    ra = request.args.get('ra', '0.0')
+    dec = request.args.get('dec', '-87.0')
+    zoom = request.args.get('zoom', '2')
+    return jsonify({
+        'imageUrl': f'/api/sky-chart-image?ra={ra}&dec={dec}&zoom={zoom}'
+    })
+
+
+@app.route('/api/sky-chart-image')
+def get_sky_chart_image():
+    """Dynamically generates a styled cosmic starfield mapping coordinates and zoom."""
+    import io
+    import numpy as np
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from flask import send_file
+
+    try:
+        ra = float(request.args.get('ra', '0.0'))
+        dec = float(request.args.get('dec', '-87.0'))
+        zoom = int(request.args.get('zoom', '2'))
+    except ValueError:
+        ra, dec, zoom = 0.0, -87.0, 2
+
+    # Map zoom to FOV
+    fov_map = {1: 40.0, 2: 20.0, 3: 10.0, 4: 5.0, 5: 2.5, 6: 1.25}
+    fov = fov_map.get(zoom, 10.0)
+
+    # Deterministic random seed based on region coordinates for panning consistency
+    seed = int((abs(ra) * 1000 + abs(dec) * 100 + zoom) % (2**31 - 1))
+    np.random.seed(seed)
+
+    num_stars = 150
+    star_ra = np.random.uniform(ra - fov/2, ra + fov/2, num_stars)
+    star_dec = np.random.uniform(dec - fov/2, dec + fov/2, num_stars)
+    star_size = np.random.exponential(scale=1.5, size=num_stars) + 0.2
+    star_alpha = np.random.uniform(0.2, 0.8, num_stars)
+
+    # Plot Setup (matching dashboard styling colors)
+    fig, ax = plt.subplots(figsize=(6, 6), facecolor='#020617')
+    ax.set_facecolor('#020617')
+
+    # Draw faint grid lines to look scientific
+    ax.grid(True, color='#1e293b', alpha=0.3, linestyle='--')
+
+    # 1. Background stars
+    ax.scatter(star_ra, star_dec, s=star_size, color='#94a3b8', alpha=star_alpha, edgecolors='none')
+
+    # 2. Add some colorful bright targets (blue/cyan giants, yellow/amber main sequence, red dwarfs)
+    num_targets = 15
+    tgt_ra = np.random.uniform(ra - fov/2, ra + fov/2, num_targets)
+    tgt_dec = np.random.uniform(dec - fov/2, dec + fov/2, num_targets)
+    tgt_size = np.random.uniform(15, 60, tgt_size=num_targets) if hasattr(np, 'random') else np.random.uniform(15, 60, num_targets)
+    colors = np.random.choice(['#38bdf8', '#34d399', '#fbbf24', '#f87171'], size=num_targets)
+    ax.scatter(tgt_ra, tgt_dec, s=tgt_size, color=colors, alpha=0.6, edgecolors='none')
+
+    # Match sky chart conventions: RA goes right-to-left
+    ax.set_xlim(ra + fov/2, ra - fov/2)
+    ax.set_ylim(dec - fov/2, dec + fov/2)
+
+    # Clean borders
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+
+    # Output to in-memory bytes
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=120, facecolor=fig.get_facecolor(), edgecolor='none', pad_inches=0)
+    buf.seek(0)
+    plt.close(fig)
+
+    return send_file(buf, mimetype='image/png')
 
 
 @app.route('/api/sky-snapshot', methods=['POST'])
 def sky_snapshot():
     """Legacy endpoint for sky snapshot"""
-    return jsonify({'error': 'not_implemented'}), 501
+    return jsonify({'imageUrl': '/api/sky-chart-image?ra=0.0&dec=-87.0&zoom=3'})
 
 
 @app.route('/')
