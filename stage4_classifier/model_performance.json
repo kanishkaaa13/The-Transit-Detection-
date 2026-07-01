@@ -1,0 +1,99 @@
+{
+  "model_type": "RandomForestClassifier",
+  "dataset_size": 8866,
+  "num_classes": 4,
+  "class_names": [
+    "Blend",
+    "EB",
+    "Noise",
+    "Planet"
+  ],
+  "cross_validation": {
+    "folds": 5,
+    "weighted_f1": 0.7994,
+    "overall_accuracy": 0.8283,
+    "per_class": {
+      "Blend": {
+        "precision": 0.8421,
+        "recall": 0.9654,
+        "f1": 0.8995,
+        "support": 6812
+      },
+      "EB": {
+        "precision": 0.56,
+        "recall": 0.1492,
+        "f1": 0.2356,
+        "support": 657
+      },
+      "Noise": {
+        "precision": 0.2222,
+        "recall": 0.0377,
+        "f1": 0.0645,
+        "support": 106
+      },
+      "Planet": {
+        "precision": 0.7708,
+        "recall": 0.5159,
+        "f1": 0.6181,
+        "support": 1291
+      }
+    },
+    "confusion_matrix": [
+      [
+        6576,
+        70,
+        14,
+        152
+      ],
+      [
+        523,
+        98,
+        0,
+        36
+      ],
+      [
+        91,
+        1,
+        4,
+        10
+      ],
+      [
+        619,
+        6,
+        0,
+        666
+      ]
+    ]
+  },
+  "held_out_test": {
+    "test_size": 0.2,
+    "test_accuracy": 0.8157,
+    "test_weighted_f1": 0.7825,
+    "per_class": {
+      "Blend": {
+        "precision": 0.8279,
+        "recall": 0.967,
+        "f1": 0.892,
+        "support": 1363
+      },
+      "EB": {
+        "precision": 0.5135,
+        "recall": 0.1439,
+        "f1": 0.2249,
+        "support": 132
+      },
+      "Noise": {
+        "precision": 0.25,
+        "recall": 0.0476,
+        "f1": 0.08,
+        "support": 21
+      },
+      "Planet": {
+        "precision": 0.773,
+        "recall": 0.4225,
+        "f1": 0.5464,
+        "support": 258
+      }
+    }
+  }
+}

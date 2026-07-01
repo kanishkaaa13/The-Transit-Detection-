@@ -4,6 +4,7 @@ import { LightCurveViewer } from './components/LightCurveViewer';
 import { SkyMap } from './components/SkyMap';
 import { PriorityQueue } from './components/PriorityQueue';
 import { ChatbotWidget } from './components/ChatbotWidget';
+import { ModelPerformancePanel } from './components/ModelPerformance';
 import { 
   Orbit, 
   Database, 
@@ -314,6 +315,9 @@ function App() {
               <span className="text-slate-400">Classifier:</span>
               <strong className="text-accent-glow uppercase font-mono">1D CNN v1.0</strong>
             </div>
+
+            {/* Model Performance Metrics trigger */}
+            <ModelPerformancePanel />
 
             <div className="flex items-center gap-1.5 px-3.5 py-1 bg-emerald-500/5 rounded-full border border-emerald-500/20 text-xs">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping inline-block" />

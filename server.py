@@ -149,6 +149,17 @@ def get_light_curve(tic_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/model-performance')
+def get_model_performance():
+    """Serve Stage 4 classifier evaluation metrics."""
+    perf_path = BASE_DIR / 'stage4_classifier' / 'model_performance.json'
+    if not perf_path.exists():
+        return jsonify({'error': 'model_performance.json not found — run stage4_evaluate.py first'}), 404
+    import json as _json
+    with open(perf_path, 'r') as f:
+        return jsonify(_json.load(f))
+
+
 @app.route('/api/sky-chart')
 def get_sky_chart():
     """Proxy endpoint for AstronomyAPI (if you want to add this later)"""
