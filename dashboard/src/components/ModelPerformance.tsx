@@ -209,7 +209,7 @@ export function ModelPerformancePanel() {
                               borderRadius: 8,
                               fontSize: 11,
                             }}
-                            formatter={(value: number) => [`${value}%`]}
+                            formatter={(value: any) => [`${value}%`]}
                           />
                           <Bar dataKey="F1" radius={[6, 6, 0, 0]} maxBarSize={40}>
                             {barData.map((entry) => (
