@@ -20,3 +20,17 @@ __pycache__/
 *api*keys*
 *api*secrets*
 secrets/
+
+# Incomplete downloads (Chrome, Edge, etc.)
+*.crdownload
+*.part
+*.download
+
+# Large binary / model files — use Git LFS if needed
+*.joblib
+*.pkl
+*.h5
+*.onnx
+
+# Lightkurve cache
+~/.lightkurve-cache/
