@@ -90,6 +90,7 @@ function buildSkyMapStars(allIds) {
       const idIdx  = headers.indexOf('ID');
       const raIdx  = headers.indexOf('ra');
       const decIdx = headers.indexOf('dec');
+      const radIdx = headers.indexOf('rad');
 
       if (idIdx !== -1 && raIdx !== -1 && decIdx !== -1) {
         for (let i = 1; i < lines.length; i++) {
@@ -100,8 +101,13 @@ function buildSkyMapStars(allIds) {
             const idStr  = parts[idIdx].trim();
             const raVal  = parseFloat(parts[raIdx]);
             const decVal = parseFloat(parts[decIdx]);
+            const radVal = radIdx !== -1 ? parseFloat(parts[radIdx]) : 1.0;
             if (idStr && !isNaN(raVal) && !isNaN(decVal)) {
-              idToCoords.set(idStr, { ra: raVal, dec: decVal });
+              idToCoords.set(idStr, { 
+                ra: raVal, 
+                dec: decVal, 
+                rad: !isNaN(radVal) ? radVal : 1.0 
+              });
             }
           }
         }
@@ -123,6 +129,7 @@ function buildSkyMapStars(allIds) {
     const coords = idToCoords.get(id) || {
       ra:  (id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0) * 137.5) % 360,
       dec: -90 + (id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0) % 10),
+      rad: 1.0
     };
 
     const digitSum = id.split('').reduce((s, c) => s + (parseInt(c, 10) || 0), 0);
@@ -133,7 +140,14 @@ function buildSkyMapStars(allIds) {
       [classification, confidence] = overrides[id];
     }
 
-    return { id, ra: coords.ra, dec: coords.dec, classification, confidence };
+    return { 
+      id, 
+      ra: coords.ra, 
+      dec: coords.dec, 
+      classification, 
+      confidence, 
+      rad: coords.rad ?? 1.0 
+    };
   });
 }
 

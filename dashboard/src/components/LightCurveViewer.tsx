@@ -252,7 +252,7 @@ ${data.reasoning.summary}`);
 * **Orbital Period**: **${data.period.toFixed(4)} days** (${(data.period * 24).toFixed(1)} hours)
 * **Transit Depth**: **${(data.depth * 100).toFixed(4)}%** (${(data.depth * 1e6).toFixed(0)} ppm)
 * **Transit Duration**: **${data.duration.toFixed(2)} hours**
-* **Planet Radius**: **${data.classification === 'Exoplanet' ? `${data.rPlanet.toFixed(2)} R⊕` : 'N/A'}**
+* **Planet Radius**: **${data.rPlanet && data.rPlanet > 0 ? `${data.rPlanet.toFixed(2)} R⊕` : 'N/A'}**
 * **Signal-to-Noise Ratio (SNR)**: **${data.snr.toFixed(1)}**`);
         return;
       }
@@ -651,6 +651,7 @@ export function LightCurveViewer({
   const [ticId, setTicId] = useState<string>('451598465');
   const [activeTicId, setActiveTicId] = useState<string>('');
   const [availableIds, setAvailableIds] = useState<string[]>([]);
+  const [starsMetadata, setStarsMetadata] = useState<Record<string, { rad: number; classification: string }>>({});
   
   // Data loading states
   const [loading, setLoading] = useState<boolean>(false);
@@ -680,7 +681,7 @@ export function LightCurveViewer({
   // AI Reasoning States
   const [isWhyOpen, setIsWhyOpen] = useState<boolean>(false);
 
-  // Load available TIC IDs on mount
+  // Load available TIC IDs and stars metadata on mount
   useEffect(() => {
     fetch(apiPath('/api/tic-ids'))
       .then(res => {
@@ -698,6 +699,26 @@ export function LightCurveViewer({
       })
       .catch(err => {
         console.error("Error loading ID list:", err);
+      });
+
+    // Fetch stars metadata (specifically rad for planet size calculations)
+    fetch(apiPath('/api/sky-map-stars'))
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load stars metadata");
+        return res.json();
+      })
+      .then((data: any[]) => {
+        const metaMap: Record<string, { rad: number; classification: string }> = {};
+        data.forEach(star => {
+          metaMap[star.id] = {
+            rad: Number(star.rad) || 1.0,
+            classification: star.classification
+          };
+        });
+        setStarsMetadata(metaMap);
+      })
+      .catch(err => {
+        console.error("Error loading stars metadata:", err);
       });
   }, []);
 
@@ -801,6 +822,13 @@ export function LightCurveViewer({
     setDetectionError(null);
     try {
       const result = await detectSignal(activeTicId);
+      
+      // Calculate rPlanet dynamically if depth and R_star (rad) are present
+      const rStar = starsMetadata[activeTicId]?.rad;
+      if (rStar !== undefined && result.depth !== undefined && result.depth > 0) {
+        result.rPlanet = rStar * Math.sqrt(result.depth) * 109.2;
+      }
+      
       setDetectionResult(result);
     } catch (err: any) {
       console.error('Signal detection failed:', err);
@@ -833,7 +861,7 @@ ${reportText}
 - Orbital Period: ${detectionResult.period.toFixed(4)} days
 - Transit Depth: ${(detectionResult.depth * 100).toFixed(4)}% (${(detectionResult.depth * 1e6).toFixed(0)} ppm)
 - Transit Duration: ${detectionResult.duration.toFixed(2)} hours
-- Planet Radius: ${detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+- Planet Radius: ${detectionResult.rPlanet && detectionResult.rPlanet > 0 ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
 - Signal SNR: ${detectionResult.snr.toFixed(1)}
 
 ## 3. AI Classifier Vetting
@@ -919,7 +947,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
       drawRow("Orbital Period:", `${detectionResult.period.toFixed(4)} days`);
       drawRow("Transit Depth:", `${(detectionResult.depth * 100).toFixed(4)}% (${(detectionResult.depth * 1e6).toFixed(0)} ppm)`);
       drawRow("Transit Duration:", `${detectionResult.duration.toFixed(2)} hours`);
-      drawRow("Estimated Planet Size:", detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R_earth` : "N/A");
+      drawRow("Estimated Planet Size:", detectionResult.rPlanet && detectionResult.rPlanet > 0 ? `${detectionResult.rPlanet.toFixed(2)} R_earth` : "N/A");
       drawRow("Signal SNR:", `${detectionResult.snr.toFixed(1)}`);
       
       // Habitability Table
@@ -1692,7 +1720,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                                 <div className="flex justify-between border-b border-slate-905 py-1">
                                   <span className="text-slate-555">Planet Size:</span>
                                   <span className="text-slate-300 font-mono font-bold">
-                                    {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+                                    {detectionResult.rPlanet && detectionResult.rPlanet > 0 ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
                                   </span>
                                 </div>
                                 <div className="flex justify-between border-b border-slate-905 py-1">
@@ -1791,7 +1819,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
           </div>
 
           {/* Detection & Classification Panel (Right 1 col) */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-6 self-start">
             <Card className="bg-[#0f172a]/30 border-slate-800/80 backdrop-blur-md">
               <CardHeader className="pb-3 border-b border-slate-800/60">
                 <CardTitle className="text-lg font-semibold tracking-wide text-slate-100 flex items-center gap-2">
@@ -1973,7 +2001,7 @@ ${rsn.rankedFeatures.map((f, i) => `- ${f.passed ? '[PASS]' : '[FAIL]'} #${i+1} 
                         <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">
                           <span className="text-[10px] text-slate-500 font-medium">Estimated Planet Size</span>
                           <span className="font-mono text-slate-200 text-sm font-semibold mt-1">
-                            {detectionResult.classification === 'Exoplanet' ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
+                            {detectionResult.rPlanet && detectionResult.rPlanet > 0 ? `${detectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}
                           </span>
                         </div>
                         <div className="p-3 bg-[#020617]/40 rounded-lg border border-slate-900/60 flex flex-col justify-between">

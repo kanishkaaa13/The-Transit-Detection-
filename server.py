@@ -56,12 +56,14 @@ def get_sky_map_stars():
                 id_str = row.get('ID', '').strip()
                 ra_val = row.get('ra', '')
                 dec_val = row.get('dec', '')
+                rad_val = row.get('rad', '1.0')
                 
                 if id_str and ra_val and dec_val:
                     try:
                         id_to_coords[id_str] = {
                             'ra': float(ra_val),
-                            'dec': float(dec_val)
+                            'dec': float(dec_val),
+                            'rad': float(rad_val) if rad_val else 1.0
                         }
                     except ValueError:
                         pass
@@ -71,7 +73,8 @@ def get_sky_map_stars():
     for star_id in available_ids:
         coords = id_to_coords.get(star_id, {
             'ra': 0 + hash(star_id) % 360,
-            'dec': -90 + (hash(star_id) % 10)
+            'dec': -90 + (hash(star_id) % 10),
+            'rad': 1.0
         })
         
         # Mock classification logic (same as Vite config)
@@ -97,7 +100,8 @@ def get_sky_map_stars():
             'ra': coords['ra'],
             'dec': coords['dec'],
             'classification': classification,
-            'confidence': confidence
+            'confidence': confidence,
+            'rad': coords.get('rad', 1.0)
         })
     
     return jsonify(stars)

@@ -6,7 +6,8 @@ import {
   Scatter, 
   XAxis, 
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  Tooltip
 } from 'recharts';
 import { 
   Compass, 
@@ -16,8 +17,10 @@ import {
   Star,
   ChevronRight,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
+import { fetchMapChartImage } from '@/services/astronomyApi';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +46,10 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
   const [starLoadError, setStarLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  
+  // AstronomyAPI sky map background
+  const [mapBgUrl, setMapBgUrl] = useState<string | null>(null);
+  const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'online' | 'error'>('idle');
   
   // Interactive Sky Map enhancements
   const [raDomain, setRaDomain] = useState<[number, number]>([0, 360]);
@@ -165,6 +172,23 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     setRaDomain([minRa, maxRa]);
   }, [centerRa, centerDec, zoom]);
 
+  // Debounced AstronomyAPI fetch (400ms) to update the background image when coordinates or zoom factors change
+  useEffect(() => {
+    setMapStatus('loading');
+    const timer = setTimeout(() => {
+      fetchMapChartImage(centerRa, centerDec, zoom).then(url => {
+        if (url) {
+          setMapBgUrl(url);
+          setMapStatus('online');
+        } else {
+          setMapStatus('error');
+        }
+      });
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [centerRa, centerDec, zoom]);
+
   // Ref for smooth-scrolling the sidebar to the selected star
   const selectedItemRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
@@ -250,6 +274,47 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
     }
   };
 
+  // Hover Tooltip content renderer
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const star = payload[0].payload as SkyStar;
+      return (
+        <div className="bg-[#020617]/95 border border-slate-800 p-3 rounded-lg shadow-2xl space-y-2.5 backdrop-blur-md text-[11px] font-sans text-left pointer-events-auto">
+          <div className="flex flex-col">
+            <span className="text-[9px] text-slate-550 font-semibold font-mono">TARGET STAR</span>
+            <strong className="text-sm text-slate-100 font-mono font-bold">TIC {star.id}</strong>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={`text-[9px] font-semibold px-1.5 py-0.25 ${badgeColors[star.classification]}`}>
+              {star.classification}
+            </Badge>
+            <span className="text-indigo-305 font-mono font-bold text-[10px]">
+              {(star.confidence * 100).toFixed(1)}% Conf
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-500 font-mono border-t border-slate-900/60 pt-1.5 space-y-0.5">
+            <div>RA: {star.ra.toFixed(4)}°</div>
+            <div>Dec: {star.dec.toFixed(4)}°</div>
+          </div>
+          <div className="pt-1.5 border-t border-slate-900/60 flex justify-between items-center gap-4">
+            <span className="text-[8.5px] text-slate-550 font-mono">Click to select</span>
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelectStar(star.id);
+              }}
+              className="text-indigo-400 font-semibold hover:text-indigo-305 transition-colors text-[10.5px] flex items-center gap-0.5 cursor-pointer bg-transparent border-none p-0"
+            >
+              View Details →
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // Custom Dot shape mapping highlight opacity and toggled confidence scale sizes
   const renderCustomDot = (props: any) => {
     const { cx, cy, payload } = props;
@@ -327,6 +392,26 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
               <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full font-mono">
                 ZOOM: {zoom}x
               </span>
+
+              {/* AstronomyAPI Sky Chart Status */}
+              {mapStatus === 'online' && (
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-sans">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  AstronomyAPI: LIVE
+                </span>
+              )}
+              {mapStatus === 'loading' && (
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-full font-sans">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-ping" />
+                  Syncing Starfield…
+                </span>
+              )}
+              {mapStatus === 'error' && (
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2.5 py-1 rounded-full font-sans">
+                  <AlertTriangle className="h-3 w-3" />
+                  Chart Offline
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -478,11 +563,25 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUpOrLeave}
                   onMouseLeave={handleMouseUpOrLeave}
-                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden bg-[#060c1a]/60 border border-slate-800/30"
-                  style={{
+                  className="h-[400px] w-full mt-2 relative rounded-md overflow-hidden bg-[#060c1a]/60 border border-slate-800/30 transition-all"
+                  style={mapBgUrl ? {
+                    backgroundImage: `url('${mapBgUrl}')`,
+                    backgroundSize: 'cover',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    transition: 'background-image 0.5s ease-in-out'
+                  } : {
                     cursor: isDragging ? 'grabbing' : 'grab',
                   }}
                 >
+                  {/* Loading spinner overlay */}
+                  {mapStatus === 'loading' && (
+                    <div className="absolute inset-0 bg-[#020617]/70 backdrop-blur-[1px] flex flex-col items-center justify-center z-20 pointer-events-none transition-all duration-300">
+                      <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mb-2" />
+                      <span className="text-[10px] text-indigo-305 font-mono tracking-wider font-semibold">Syncing Starfield...</span>
+                    </div>
+                  )}
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart
                       margin={{ top: 25, right: 25, bottom: 25, left: 25 }}
@@ -505,6 +604,11 @@ export function SkyMap({ onSelectStar }: SkyMapProps) {
                         stroke="rgba(148, 163, 184, 0.3)"
                         fontSize={9}
                         tickFormatter={(val) => `${val.toFixed(0)}° Dec`}
+                      />
+                      <Tooltip
+                        content={<CustomTooltip />}
+                        wrapperStyle={{ pointerEvents: 'auto', outline: 'none' }}
+                        cursor={false}
                       />
                       <Scatter 
                         name="Stellar Coordinates" 

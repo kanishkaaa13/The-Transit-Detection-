@@ -140,7 +140,7 @@ export function ChatbotWidget({
         };
       }
       return {
-        text: `Stellar Transit Parameters [TIC ${activeStarId}]:\n• **Orbital Period:** ${activeDetectionResult.period.toFixed(4)} days (${(activeDetectionResult.period * 24).toFixed(1)} hours)\n• **Transit Depth:** ${(activeDetectionResult.depth * 100).toFixed(4)}% (${(activeDetectionResult.depth * 1e6).toFixed(0)} ppm)\n• **Transit Duration:** ${activeDetectionResult.duration.toFixed(2)} hours\n• **Planet Radius:** ${activeDetectionResult.classification === 'Exoplanet' ? `${activeDetectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}\n• **Signal-to-Noise Ratio (SNR):** ${activeDetectionResult.snr.toFixed(1)}`
+        text: `Stellar Transit Parameters [TIC ${activeStarId}]:\n• **Orbital Period:** ${activeDetectionResult.period.toFixed(4)} days (${(activeDetectionResult.period * 24).toFixed(1)} hours)\n• **Transit Depth:** ${(activeDetectionResult.depth * 100).toFixed(4)}% (${(activeDetectionResult.depth * 1e6).toFixed(0)} ppm)\n• **Transit Duration:** ${activeDetectionResult.duration.toFixed(2)} hours\n• **Planet Radius:** ${activeDetectionResult.rPlanet && activeDetectionResult.rPlanet > 0 ? `${activeDetectionResult.rPlanet.toFixed(2)} R⊕` : 'N/A'}\n• **Signal-to-Noise Ratio (SNR):** ${activeDetectionResult.snr.toFixed(1)}`
       };
     }
 
