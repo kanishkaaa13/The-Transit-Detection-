@@ -1,3 +1,4 @@
 {
-  "typescript.tsdk": "dashboard/node_modules/typescript/lib"
+  "typescript.tsdk": "dashboard/node_modules/typescript/lib",
+  "css.lint.unknownAtRules": "ignore"
 }
