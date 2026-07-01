@@ -32,6 +32,7 @@ export function SkySnapshot({ ticId }: SkySnapshotProps) {
       if (cancelled) return;
 
       if (!coords) {
+        console.warn(`[SkySnapshot] No coordinates resolved for TIC ${ticId}`);
         setStatus('error');
         return;
       }
@@ -40,8 +41,13 @@ export function SkySnapshot({ ticId }: SkySnapshotProps) {
       const url = await fetchStarChartImage(ticId, coords.ra, coords.dec);
       if (cancelled) return;
 
+      // Debugging requirements: Log the exact value returned from the AstronomyAPI call
+      console.log(`[SkySnapshot] fetchStarChartImage returned value for TIC ${ticId}:`, url);
+
       if (url) {
-        setImageUrl(url);
+        // Requirements: check if the URL requires HTTPS (if it's returning HTTP, block is bypassed by replacing with https)
+        const secureUrl = url.replace(/^http:/i, 'https:');
+        setImageUrl(secureUrl);
         setStatus('loaded');
       } else {
         setStatus('error');
@@ -85,6 +91,10 @@ export function SkySnapshot({ ticId }: SkySnapshotProps) {
             alt={`Star chart for TIC ${ticId}`}
             className="w-full h-auto object-cover block"
             style={{ maxHeight: '200px', objectPosition: 'center' }}
+            onError={() => {
+              console.warn(`[SkySnapshot] Star chart image failed to load for url: ${imageUrl}`);
+              setStatus('error');
+            }}
           />
           {/* Overlay gradient at bottom for attribution */}
           <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#020617]/90 to-transparent px-2.5 py-1.5">
@@ -94,13 +104,13 @@ export function SkySnapshot({ ticId }: SkySnapshotProps) {
           </div>
         </div>
       ) : (
-        /* Fallback */
+        /* Fallback placeholder */
         <div className="w-full h-36 rounded-lg bg-slate-900/40 border border-slate-800/40 flex flex-col items-center justify-center gap-2 text-center px-4">
           <Telescope className="h-8 w-8 text-slate-700" />
-          <p className="text-[10px] text-slate-600 leading-relaxed">
-            Sky snapshot unavailable.
+          <p className="text-[10px] text-slate-600 leading-relaxed font-sans">
+            Sky snapshot unavailable
             <br />
-            Set <code className="text-slate-500">ASTRONOMY_API_ID</code> &amp; <code className="text-slate-500">ASTRONOMY_API_SECRET</code> in <code className="text-slate-500">.env</code>.
+            <span className="text-[9px] text-slate-500 font-mono">AstronomyAPI credentials required</span>
           </p>
         </div>
       )}

@@ -53,6 +53,20 @@ const CLASS_COLORS: Record<string, string> = {
   FP: '#f43f5e',
 };
 
+function getF1ColorClass(f1: number): string {
+  const pct = f1 * 100;
+  if (pct > 80) return 'text-emerald-400';
+  if (pct >= 50) return 'text-amber-400';
+  return 'text-rose-455'; // vibrant rose-500 equivalent color class (text-rose-500 or text-rose-400)
+}
+
+function getF1HexColor(f1: number): string {
+  const pct = f1 * 100;
+  if (pct > 80) return '#34d399'; // emerald-400
+  if (pct >= 50) return '#fbbf24'; // amber-400
+  return '#f43f5e'; // rose-500
+}
+
 export function ModelPerformancePanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<ModelPerformanceData | null>(null);
@@ -149,145 +163,179 @@ export function ModelPerformancePanel() {
                 </div>
               )}
 
-              {data && !loading && (
-                <>
-                  {/* ── KPI Cards ── */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
-                        CV Accuracy
-                      </span>
-                      <strong className="text-2xl font-black text-emerald-400 font-mono">
-                        {(data.cross_validation.overall_accuracy * 100).toFixed(1)}%
-                      </strong>
-                    </div>
-                    <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
-                        Weighted F1
-                      </span>
-                      <strong className="text-2xl font-black text-cyan-400 font-mono">
-                        {(data.cross_validation.weighted_f1 * 100).toFixed(1)}%
-                      </strong>
-                    </div>
-                    <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
-                      <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
-                        Test Accuracy
-                      </span>
-                      <strong className="text-2xl font-black text-amber-400 font-mono">
-                        {(data.held_out_test.test_accuracy * 100).toFixed(1)}%
-                      </strong>
-                    </div>
-                  </div>
+              {data && !loading && (() => {
+                const totalSupport = Object.values(data.cross_validation.per_class).reduce((sum, m) => sum + m.support, 0);
+                const weightedAvgF1 = totalSupport > 0 
+                  ? Object.values(data.cross_validation.per_class).reduce((sum, m) => sum + (m.f1 * m.support), 0) / totalSupport
+                  : 0;
 
-                  {/* ── Per-class F1 Bar Chart ── */}
-                  <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <TrendingUp className="h-4 w-4 text-accent" />
-                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        Per-Class F1 Scores
-                      </span>
+                return (
+                  <>
+                    {/* Label above metrics panel */}
+                    <div className="text-[11px] text-slate-400 font-semibold bg-slate-900/60 border border-slate-800/80 px-3 py-2 rounded-lg inline-block w-full text-center">
+                      5-Fold Cross-Validation on TOI Catalog Training Set
                     </div>
-                    <div className="h-52">
-                      <ResponsiveContainer width="100%" height={200}>
-                        <BarChart data={barData} barCategoryGap="20%">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                          <XAxis
-                            dataKey="name"
-                            tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
-                            axisLine={{ stroke: '#334155' }}
-                          />
-                          <YAxis
-                            domain={[0, 100]}
-                            tick={{ fill: '#94a3b8', fontSize: 10 }}
-                            axisLine={{ stroke: '#334155' }}
-                            tickFormatter={(v: number) => `${v}%`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              background: '#0f172a',
-                              border: '1px solid #334155',
-                              borderRadius: 8,
-                              fontSize: 11,
-                            }}
-                            formatter={(value: any) => [`${value}%`]}
-                          />
-                          <Bar dataKey="F1" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                            {barData.map((entry) => (
-                              <Cell
-                                key={entry.name}
-                                fill={CLASS_COLORS[entry.name] || '#6366f1'}
-                              />
+
+                    {/* ── KPI Cards ── */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
+                        <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
+                          CV Accuracy
+                        </span>
+                        <strong className="text-2xl font-black text-emerald-400 font-mono">
+                          {(data.cross_validation.overall_accuracy * 100).toFixed(1)}%
+                        </strong>
+                      </div>
+                      <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
+                        <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
+                          Weighted F1
+                        </span>
+                        <strong className="text-2xl font-black text-cyan-400 font-mono">
+                          {(data.cross_validation.weighted_f1 * 100).toFixed(1)}%
+                        </strong>
+                      </div>
+                      <div className="p-4 bg-[#020617]/60 rounded-xl border border-slate-800/50 text-center">
+                        <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-mono mb-1">
+                          Test Accuracy
+                        </span>
+                        <strong className="text-2xl font-black text-amber-400 font-mono">
+                          {(data.held_out_test.test_accuracy * 100).toFixed(1)}%
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* ── Per-class F1 Bar Chart ── */}
+                    <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingUp className="h-4 w-4 text-accent" />
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                          Per-Class F1 Scores
+                        </span>
+                      </div>
+                      <div className="h-52">
+                        <ResponsiveContainer width="100%" height={200}>
+                          <BarChart data={barData} barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                            <XAxis
+                              dataKey="name"
+                              tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 700 }}
+                              axisLine={{ stroke: '#334155' }}
+                            />
+                            <YAxis
+                              domain={[0, 100]}
+                              tick={{ fill: '#94a3b8', fontSize: 10 }}
+                              axisLine={{ stroke: '#334155' }}
+                              tickFormatter={(v: number) => `${v}%`}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                background: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: 8,
+                                fontSize: 11,
+                              }}
+                              formatter={(value: any) => [`${value}%`]}
+                            />
+                            <Bar dataKey="F1" radius={[6, 6, 0, 0]} maxBarSize={40}>
+                              {barData.map((entry) => (
+                                <Cell
+                                  key={entry.name}
+                                  fill={getF1HexColor(entry.F1 / 100)}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* ── Per-class detail table ── */}
+                    <div className="space-y-2.5">
+                      <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 overflow-hidden">
+                        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800/40">
+                          <Layers className="h-4 w-4 text-accent" />
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                            Per-Class Metrics (5-Fold CV)
+                          </span>
+                        </div>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-slate-500 uppercase tracking-wider border-b border-slate-800/40">
+                              <th className="text-left px-4 py-2.5 font-semibold">Class</th>
+                              <th className="text-right px-4 py-2.5 font-semibold">Precision</th>
+                              <th className="text-right px-4 py-2.5 font-semibold">Recall</th>
+                              <th className="text-right px-4 py-2.5 font-semibold">F1</th>
+                              <th className="text-right px-4 py-2.5 font-semibold">Support</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(data.cross_validation.per_class).map(([cls, m]) => (
+                              <tr
+                                key={cls}
+                                className="border-b border-slate-900/40 last:border-0 hover:bg-slate-800/20 transition-colors"
+                              >
+                                <td className="px-4 py-2.5 font-bold" style={{ color: CLASS_COLORS[cls] || '#e2e8f0' }}>
+                                  {cls}
+                                </td>
+                                <td className="text-right px-4 py-2.5 text-slate-300 font-mono">
+                                  {(m.precision * 100).toFixed(1)}%
+                                </td>
+                                <td className="text-right px-4 py-2.5 text-slate-300 font-mono">
+                                  {(m.recall * 100).toFixed(1)}%
+                                </td>
+                                <td className={`text-right px-4 py-2.5 font-mono font-bold ${getF1ColorClass(m.f1)}`}>
+                                  {(m.f1 * 100).toFixed(1)}%
+                                </td>
+                                <td className="text-right px-4 py-2.5 text-slate-400 font-mono">
+                                  {m.support.toLocaleString()}
+                                </td>
+                              </tr>
                             ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
+                            {/* Weighted average F1 row */}
+                            <tr className="border-t border-slate-800 bg-[#020617]/50 font-semibold text-slate-200">
+                              <td className="px-4 py-2.5 font-bold">Weighted Average</td>
+                              <td className="text-right px-4 py-2.5 font-mono text-slate-500">-</td>
+                              <td className="text-right px-4 py-2.5 font-mono text-slate-500">-</td>
+                              <td className={`text-right px-4 py-2.5 font-mono font-bold ${getF1ColorClass(weightedAvgF1)}`}>
+                                {(weightedAvgF1 * 100).toFixed(1)}%
+                              </td>
+                              <td className="text-right px-4 py-2.5 text-slate-300 font-mono">
+                                {totalSupport.toLocaleString()}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
 
-                  {/* ── Per-class detail table ── */}
-                  <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800/40">
-                      <Layers className="h-4 w-4 text-accent" />
-                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        Per-Class Metrics (5-Fold CV)
-                      </span>
+                      {/* Class imbalance note below the table */}
+                      <p className="text-[10px] text-amber-500/90 bg-amber-500/5 border border-amber-500/10 rounded-lg p-2.5 flex items-start gap-1.5 leading-relaxed font-sans">
+                        <span className="text-xs leading-none mt-0.5 shrink-0">⚠</span>
+                        <span>
+                          <strong>Class imbalance detected:</strong> Blend class has 53x more training examples than Noise. Consider SMOTE oversampling or class weights in next training iteration.
+                        </span>
+                      </p>
                     </div>
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-slate-500 uppercase tracking-wider border-b border-slate-800/40">
-                          <th className="text-left px-4 py-2.5 font-semibold">Class</th>
-                          <th className="text-right px-4 py-2.5 font-semibold">Precision</th>
-                          <th className="text-right px-4 py-2.5 font-semibold">Recall</th>
-                          <th className="text-right px-4 py-2.5 font-semibold">F1</th>
-                          <th className="text-right px-4 py-2.5 font-semibold">Support</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(data.cross_validation.per_class).map(([cls, m]) => (
-                          <tr
-                            key={cls}
-                            className="border-b border-slate-900/40 last:border-0 hover:bg-slate-800/20 transition-colors"
-                          >
-                            <td className="px-4 py-2.5 font-bold" style={{ color: CLASS_COLORS[cls] || '#e2e8f0' }}>
-                              {cls}
-                            </td>
-                            <td className="text-right px-4 py-2.5 text-slate-300 font-mono">
-                              {(m.precision * 100).toFixed(1)}%
-                            </td>
-                            <td className="text-right px-4 py-2.5 text-slate-300 font-mono">
-                              {(m.recall * 100).toFixed(1)}%
-                            </td>
-                            <td className="text-right px-4 py-2.5 text-slate-200 font-mono font-bold">
-                              {(m.f1 * 100).toFixed(1)}%
-                            </td>
-                            <td className="text-right px-4 py-2.5 text-slate-400 font-mono">
-                              {m.support.toLocaleString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
 
-                  {/* ── Confusion Matrix Image ── */}
-                  <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <BarChart3 className="h-4 w-4 text-accent" />
-                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                        Confusion Matrix (5-Fold CV)
-                      </span>
+                    {/* ── Confusion Matrix Image ── */}
+                    <div className="bg-[#020617]/40 rounded-xl border border-slate-800/40 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 className="h-4 w-4 text-accent" />
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                          Confusion Matrix (5-Fold CV)
+                        </span>
+                      </div>
+                      <div className="flex justify-center">
+                        <img
+                          src="/confusion_matrix.png"
+                          alt="Confusion Matrix Heatmap"
+                          className="max-w-full rounded-lg border border-slate-800/40"
+                          style={{ maxHeight: 380 }}
+                        />
+                      </div>
                     </div>
-                    <div className="flex justify-center">
-                      <img
-                        src="/confusion_matrix.png"
-                        alt="Confusion Matrix Heatmap"
-                        className="max-w-full rounded-lg border border-slate-800/40"
-                        style={{ maxHeight: 380 }}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
